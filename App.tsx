@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import InputForm from './components/InputForm';
 import SuggestionSelector from './components/SuggestionSelector';
@@ -8,6 +8,7 @@ import Settings from './components/Settings';
 import { AppStep, BrandProfile, AdTemplate } from './types';
 import { analyzeAdCopyForStyles } from './services/geminiService';
 import { listImagesInFolder } from './services/driveService';
+import { getLibrary, deleteTemplate } from './services/storageService';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import ToastContainer from './components/Toast';
 import { AD_LIBRARY } from './constants';
@@ -37,6 +38,19 @@ const MainApp: React.FC = () => {
   const [availableTemplates, setAvailableTemplates] = useState<AdTemplate[]>(AD_LIBRARY);
 
   const { showToast } = useNotification();
+
+  // Load Library on Mount
+  useEffect(() => {
+    const loadLibrary = async () => {
+        try {
+            const lib = await getLibrary();
+            setDefaultLibrary(lib);
+        } catch (e) {
+            console.error("Failed to load library", e);
+        }
+    };
+    loadLibrary();
+  }, []);
 
   const handleNavigate = (step: AppStep) => {
       setCurrentStep(step);
@@ -96,9 +110,14 @@ const MainApp: React.FC = () => {
       setDefaultLibrary(prev => [template, ...prev]);
   };
 
-  const handleRemoveTemplate = (id: string) => {
-      setDefaultLibrary(prev => prev.filter(t => t.id !== id));
-      showToast("Template removed from library", "info");
+  const handleRemoveTemplate = async (id: string) => {
+      try {
+          await deleteTemplate(id);
+          setDefaultLibrary(prev => prev.filter(t => t.id !== id));
+          showToast("Template removed from library", "info");
+      } catch (e) {
+          showToast("Failed to delete template", "error");
+      }
   };
 
   // Determine what to render in the main area

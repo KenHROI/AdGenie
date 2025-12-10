@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { describeImageStyle } from '../services/geminiService';
+import { uploadTemplate } from '../services/storageService';
 
 interface SettingsProps {
   templates: AdTemplate[];
@@ -11,7 +12,7 @@ interface SettingsProps {
 }
 
 // Utility to resize and compress images before processing
-const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<string> => {
+const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -41,7 +42,13 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<stri
                     return;
                 }
                 ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                    } else {
+                        reject(new Error("Compression failed"));
+                    }
+                }, 'image/jpeg', quality);
             };
             img.onerror = (err) => reject(err);
         };
@@ -51,20 +58,47 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<stri
 
 const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate }) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [progressState, setProgressState] = useState({ current: 0, total: 0 });
+  
   const { showToast } = useNotification();
   
-  // Use a ref to track mounted state to avoid setting state after unmount during long processes
+  // Refs for control
   const isMounted = useRef(true);
+  const isPausedRef = useRef(false);
+  const isCancelledRef = useRef(false);
+
   React.useEffect(() => {
     return () => { isMounted.current = false; };
   }, []);
+
+  const handlePause = () => {
+      isPausedRef.current = true;
+      setIsPaused(true);
+  };
+
+  const handleResume = () => {
+      isPausedRef.current = false;
+      setIsPaused(false);
+  };
+
+  const handleCancel = () => {
+      isCancelledRef.current = true;
+      isPausedRef.current = false; // ensure we break loops
+      setIsPaused(false);
+      setIsUploading(false);
+      showToast("Upload cancelled", "info");
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    setIsPaused(false);
+    isPausedRef.current = false;
+    isCancelledRef.current = false;
+
     const totalFiles = files.length;
     setProgressState({ current: 0, total: totalFiles });
 
@@ -78,31 +112,47 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
     let index = 0;
 
     const processNext = async (): Promise<void> => {
+        // Check Cancel
+        if (isCancelledRef.current) return;
+
+        // Check Pause Loop
+        while (isPausedRef.current) {
+            if (isCancelledRef.current) return;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Get next file index atomically
         if (index >= fileArray.length) return;
-        
         const currentIndex = index++;
         const file = fileArray[currentIndex];
 
         try {
-            if (file.size > 20 * 1024 * 1024) { // 20MB Hard limit before optimization check
+            if (file.size > 20 * 1024 * 1024) { 
                 throw new Error("File too large (>20MB)");
             }
 
-            // 1. Optimize Image (Client-side resize)
-            const base64 = await optimizeImage(file);
+            // 1. Optimize (Client-side)
+            const optimizedFile = await optimizeImage(file);
+            const reader = new FileReader();
+            
+            // Get base64 for AI analysis
+            const base64: string = await new Promise(resolve => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result as string);
+                r.readAsDataURL(optimizedFile);
+            });
 
-            // 2. Analyze with AI
+            // 2. Analyze
             const aiData = await describeImageStyle(base64);
 
-            const newTemplate: AdTemplate = {
-                id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                imageUrl: base64,
+            // 3. Upload via Service (API or Local Fallback)
+            const newTemplate = await uploadTemplate(optimizedFile, {
                 name: aiData.name || "Custom Upload",
                 description: aiData.description || "User uploaded template",
-                tags: aiData.tags || ["custom"],
-            };
+                tags: aiData.tags || ["custom"]
+            });
 
-            if (isMounted.current) {
+            if (isMounted.current && !isCancelledRef.current) {
                 onAddTemplate(newTemplate);
                 successCount++;
             }
@@ -110,15 +160,15 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
         } catch (error: any) {
             console.error(`Error processing ${file.name}:`, error);
             failCount++;
-            // Optional: Show specific error for single file failures if needed, 
-            // but for bulk, usually better to summarize at end or log.
         } finally {
-            processedCount++;
-            if (isMounted.current) {
-                setProgressState(prev => ({ ...prev, current: processedCount }));
+            if (!isCancelledRef.current) {
+                processedCount++;
+                if (isMounted.current) {
+                    setProgressState(prev => ({ ...prev, current: processedCount }));
+                }
+                // Recursive call
+                await processNext();
             }
-            // Recursive call to process next item in queue
-            await processNext();
         }
     };
 
@@ -132,15 +182,15 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
     await Promise.all(workers);
 
-    if (isMounted.current) {
+    if (isMounted.current && !isCancelledRef.current) {
         setIsUploading(false);
         setProgressState({ current: 0, total: 0 });
 
         if (successCount > 0) {
-            showToast(`Successfully added ${successCount} images to library`, "success");
+            showToast(`Completed: ${successCount} added`, "success");
         }
         if (failCount > 0) {
-            showToast(`Failed to process ${failCount} images`, "error");
+            showToast(`Failed: ${failCount} files`, "error");
         }
     }
     
@@ -150,9 +200,21 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
   return (
     <div className="w-full h-full bg-white flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h2>
-            <p className="text-sm text-gray-500 mt-1">Manage your application preferences and assets.</p>
+        <div className="flex-shrink-0 mb-8 flex justify-between items-start">
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h2>
+                <p className="text-sm text-gray-500 mt-1">Manage your application preferences and assets.</p>
+            </div>
+            {isUploading && (
+                <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <button onClick={isPaused ? handleResume : handlePause} className="px-3 py-1 text-xs font-bold bg-white border border-gray-200 rounded hover:bg-gray-50">
+                        {isPaused ? 'Resume' : 'Pause'}
+                    </button>
+                    <button onClick={handleCancel} className="px-3 py-1 text-xs font-bold bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100">
+                        Cancel
+                    </button>
+                </div>
+            )}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
@@ -164,7 +226,6 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                         <h3 className="text-lg font-bold text-gray-900">Default Swipe File Library</h3>
                         <p className="text-sm text-gray-500">
                             These templates are available when "Default" is selected in your campaign.
-                            Upload images here to expand your permanent library.
                         </p>
                     </div>
                     <span className="text-xs font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-600">
@@ -174,16 +235,25 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {/* Upload Card */}
-                    <label className={`relative rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-all cursor-pointer flex flex-col items-center justify-center aspect-square group ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <label className={`relative rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-all cursor-pointer flex flex-col items-center justify-center aspect-square group ${isUploading ? 'opacity-100 cursor-default' : ''}`}>
                          {isUploading ? (
                              <div className="flex flex-col items-center w-full px-4 text-center">
-                                 <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2 mx-auto"></div>
+                                 {isPaused ? (
+                                     <div className="w-8 h-8 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full mb-2">
+                                         ⏸
+                                     </div>
+                                 ) : (
+                                     <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2 mx-auto"></div>
+                                 )}
+                                 <span className="text-[10px] text-gray-500 font-mono block mb-1">
+                                    {isPaused ? 'Paused' : 'Uploading...'}
+                                 </span>
                                  <span className="text-[10px] text-gray-400 font-mono block">
                                     {progressState.current} / {progressState.total}
                                  </span>
                                  <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
                                      <div 
-                                        className="bg-black h-1 rounded-full transition-all duration-300" 
+                                        className={`h-1 rounded-full transition-all duration-300 ${isPaused ? 'bg-yellow-400' : 'bg-black'}`}
                                         style={{ width: `${(progressState.current / Math.max(progressState.total, 1)) * 100}%` }}
                                      ></div>
                                  </div>
@@ -219,18 +289,6 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                         </div>
                     ))}
                 </div>
-            </section>
-
-            {/* API Settings Section */}
-            <section className="mb-12 border-t border-gray-100 pt-8 opacity-60">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">API Configuration</h3>
-                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                     <p className="text-sm text-gray-500 mb-4">API keys are managed securely via environment variables or session storage.</p>
-                     <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        System Active
-                     </div>
-                 </div>
             </section>
         </div>
     </div>
