@@ -7,6 +7,21 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
+// Helper to sanitize JSON string from Markdown or extra text
+const cleanJson = (text: string): string => {
+  if (!text) return "{}";
+  // Remove markdown code blocks
+  let clean = text.replace(/```json/g, '').replace(/```/g, '');
+  // Extract content between first { and last }
+  const firstOpen = clean.indexOf('{');
+  const lastClose = clean.lastIndexOf('}');
+  
+  if (firstOpen !== -1 && lastClose !== -1) {
+    clean = clean.substring(firstOpen, lastClose + 1);
+  }
+  return clean.trim();
+};
+
 export const analyzeAdCopyForStyles = async (
   adCopy: string,
   availableTemplates: AdTemplate[] = AD_LIBRARY
@@ -31,7 +46,7 @@ export const analyzeAdCopyForStyles = async (
     Templates:
     ${templatesDescription}
     
-    Return the 3 IDs in a JSON array.
+    Return ONLY a raw JSON array of strings, e.g. ["id1", "id2"]. Do not include markdown or explanations.
   `;
 
   try {
@@ -49,8 +64,20 @@ export const analyzeAdCopyForStyles = async (
       }
     });
 
-    const jsonStr = response.text || "[]";
-    const selectedIds = JSON.parse(jsonStr) as string[];
+    // The SDK sometimes auto-parses, but we access .text to be safe given the prompt instructions
+    const jsonStr = cleanJson(response.text || "[]");
+    let selectedIds: string[] = [];
+    
+    try {
+        selectedIds = JSON.parse(jsonStr) as string[];
+    } catch (e) {
+        console.warn("Failed to parse analysis JSON:", jsonStr);
+        // Fallback: try to find strings in the text
+        const matches = jsonStr.match(/"([^"]+)"/g);
+        if (matches) {
+            selectedIds = matches.map(s => s.replace(/"/g, ''));
+        }
+    }
     
     // Validate IDs exist
     const validIds = selectedIds.filter(id => templatesToAnalyze.some(t => t.id === id));
@@ -83,15 +110,17 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
     Analyze this image to be used as an advertisement template.
     Identify its layout structure, visual style, and key composition elements.
     
-    Return a JSON object with:
+    Return ONLY a JSON object with:
     - name: A short, punchy 2-3 word name for this style (e.g. "Minimalist Tech", "Bold Sale").
     - description: A concise 1-sentence description of the layout and vibe.
     - tags: An array of 3-5 keywords describing the style.
+    
+    Do not use markdown formatting.
   `;
 
   try {
     const response = await ai.models.generateContent({
-        model: GeminiModel.ANALYSIS, // Using 2.5 Flash for multimodal analysis
+        model: GeminiModel.ANALYSIS, 
         contents: {
             parts: [
                 { text: prompt },
@@ -111,10 +140,11 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
         }
     });
     
-    const jsonStr = response.text;
+    const jsonStr = cleanJson(response.text || "{}");
     return JSON.parse(jsonStr) as Partial<AdTemplate>;
   } catch (error) {
       console.error("Error describing image:", error);
+      // Return a safe fallback to prevent UI crash
       return {
           name: "Custom Upload",
           description: "User uploaded template",
@@ -186,7 +216,6 @@ export const generateAdVariation = async (
     return null;
   } catch (error: any) {
     console.error("Error generating image:", error);
-    // Pass specific error messages up
     if (error.message?.includes('429')) {
         throw new Error("Quota exceeded. Please try again later.");
     }

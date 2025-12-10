@@ -80,7 +80,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
     const processSeed = async (seedUrl: string, sourceName: string, sourceId?: string) => {
         for (let i = 0; i < variationsPerSeed; i++) {
-             setCurrentAction(`Variation ${i + 1} for ${sourceName}...`);
+             setCurrentAction(`Creating Variation ${i + 1} for ${sourceName}...`);
              try {
                  let base64 = seedUrl;
                  if (seedUrl.startsWith('http')) {
@@ -257,18 +257,34 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                       <span className="text-xs text-gray-400">AI Generated</span>
                   </div>
                   
-                  <div className="mb-6 text-sm text-gray-500">
-                      {isGenerating ? (
-                          <div className="flex items-center space-x-3 p-2">
-                              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
-                              <span className="font-medium text-indigo-600">{currentAction}</span>
-                              <span className="text-gray-300">|</span>
-                              <span className="text-gray-400">{Math.round(progress)}% complete</span>
+                  {isGenerating ? (
+                      <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm max-w-lg">
+                          <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center space-x-3">
+                                 <div className="relative">
+                                     <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                                     <div className="w-3 h-3 bg-indigo-500 rounded-full animate-ping absolute inset-0"></div>
+                                 </div>
+                                 <h3 className="font-bold text-gray-900">Generating Assets</h3>
+                              </div>
+                              <span className="text-xs font-mono text-gray-400">{Math.round(progress)}%</span>
                           </div>
-                      ) : (
-                          <p>Here are your high-fidelity variations. Click any image to download.</p>
-                      )}
-                  </div>
+                          
+                          <div className="w-full bg-gray-100 rounded-full h-2.5 mb-3 overflow-hidden">
+                            <div 
+                              className="bg-black h-2.5 rounded-full transition-all duration-500 ease-out" 
+                              style={{ width: `${Math.max(5, progress)}%` }}
+                            ></div>
+                          </div>
+                          
+                          <p className="text-sm text-gray-700 font-medium mb-1 transition-all">{currentAction}</p>
+                          <p className="text-xs text-gray-400 leading-relaxed">
+                              This uses the Gemini 3 Pro model for high-fidelity output. The process analyzes your styles and generates pixel-perfect variations. Please keep this tab open.
+                          </p>
+                      </div>
+                  ) : (
+                      <p className="mb-6 text-sm text-gray-500">Here are your high-fidelity variations. Click any image to download.</p>
+                  )}
 
                   {/* Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -286,12 +302,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                               </div>
                           </div>
                       ))}
-                      {isGenerating && progress < 100 && (
-                          <div className="aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center animate-pulse gap-2">
-                              <span className="text-3xl opacity-20">🎨</span>
-                              <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Rendering</span>
-                          </div>
-                      )}
                   </div>
               </div>
           </div>
