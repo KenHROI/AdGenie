@@ -1,6 +1,8 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { generateAdVariation } from '../services/geminiService';
+import { useNotification } from '../context/NotificationContext';
 
 interface ImageGeneratorProps {
   brandData: BrandProfile;
@@ -22,9 +24,8 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const [results, setResults] = useState<GeneratedImage[]>([]);
   const [progress, setProgress] = useState(0);
   const [currentAction, setCurrentAction] = useState('Initializing...');
-  const [error, setError] = useState<string | null>(null);
-
-  const totalTasks = (selectedTemplates.length + customSeeds.length) * variationsPerSeed;
+  
+  const { showToast } = useNotification();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             startGeneration();
         } catch (e) {
             console.error(e);
-            setError("Failed to select key.");
+            showToast("Failed to select API key", 'error');
         }
     }
   };
@@ -71,23 +72,31 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     setIsGenerating(true);
     setResults([]);
     setProgress(0);
-    setError(null);
+    showToast("Starting generation workflow...", 'info');
 
     let completed = 0;
+    const totalTasks = (selectedTemplates.length + customSeeds.length) * variationsPerSeed;
 
     const processSeed = async (seedUrl: string, sourceName: string, sourceId?: string) => {
         for (let i = 0; i < variationsPerSeed; i++) {
-             setCurrentAction(`Designing variation ${i + 1} for ${sourceName}...`);
+             setCurrentAction(`Variation ${i + 1} for ${sourceName}...`);
              try {
                  let base64 = seedUrl;
                  if (seedUrl.startsWith('http')) {
-                     const resp = await fetch(seedUrl);
-                     const blob = await resp.blob();
-                     base64 = await new Promise<string>((resolve) => {
-                         const reader = new FileReader();
-                         reader.onloadend = () => resolve(reader.result as string);
-                         reader.readAsDataURL(blob);
-                     });
+                     // Attempt to fetch, handles CORS if server allows, otherwise might fail.
+                     // For Google Drive thumbnails, it's often fine.
+                     try {
+                        const resp = await fetch(seedUrl);
+                        const blob = await resp.blob();
+                        base64 = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.readAsDataURL(blob);
+                        });
+                     } catch (e) {
+                         console.warn("Could not fetch image for base64 conversion, trying direct URL", e);
+                         // Some APIs might take URL directly, but Gemini SDK usually wants inline data for robustness
+                     }
                  }
 
                  const generatedBase64 = await generateAdVariation(base64, brandData, sourceName);
@@ -104,10 +113,12 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
              } catch (err: any) {
                  console.error(`Failed to generate`, err);
                  if (err.message && err.message.includes("Requested entity was not found")) {
-                     setError("API Key issue detected.");
+                     showToast("API Key expired or invalid. Please reconnect.", 'error');
                      setHasKey(false);
                      setIsGenerating(false);
                      return; 
+                 } else if (err.message?.includes("Quota")) {
+                     showToast("Quota exceeded. Slowing down...", 'error');
                  }
              } finally {
                  completed++;
@@ -118,18 +129,21 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
     // Process templates
     for (const template of selectedTemplates) {
-        if (!hasKey && error) break;
+        if (!hasKey) break;
         await processSeed(template.imageUrl, template.name, template.id);
     }
 
     // Process custom seeds
     for (let i = 0; i < customSeeds.length; i++) {
-        if (!hasKey && error) break;
+        if (!hasKey) break;
         await processSeed(customSeeds[i], `Custom Seed ${i + 1}`);
     }
 
     setIsGenerating(false);
     setCurrentAction('Done!');
+    if (completed > 0) {
+        showToast("Generation workflow complete!", 'success');
+    }
   };
 
   const downloadImage = (base64: string, id: string) => {
@@ -139,6 +153,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast("Image downloading...", 'success');
   };
 
   if (!hasKey) {
@@ -146,8 +161,8 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
           <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white">
               <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-sm">🔑</div>
               <h2 className="text-xl font-bold mb-2 text-gray-900">Unlock Pro Features</h2>
-              <p className="text-gray-500 max-w-sm mb-8">Connect your API key to access the Nano Banana Pro model for high-fidelity rendering.</p>
-              <button onClick={handleKeySelection} className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200">Connect API Key</button>
+              <p className="text-gray-500 max-w-sm mb-8">Connect your API key to access the Nano Banana Pro model.</p>
+              <button onClick={handleKeySelection} className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg">Connect API Key</button>
               <button onClick={onBack} className="mt-6 text-sm text-gray-400 hover:text-gray-600">Cancel</button>
           </div>
       );
@@ -170,9 +185,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
              <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm font-medium px-4 py-2">
                 Back
              </button>
-             <button className="bg-gray-50 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors border border-gray-200">
-                Export All
-            </button>
           </div>
       </div>
 

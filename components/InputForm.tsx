@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrandProfile } from '../types';
+import { useNotification } from '../context/NotificationContext';
 
 interface InputFormProps {
   initialData: BrandProfile;
@@ -8,8 +9,6 @@ interface InputFormProps {
   isLoading?: boolean;
 }
 
-// NOTE: In a real production app, this should be in process.env.REACT_APP_GOOGLE_CLIENT_ID
-// If not provided, the Drive button will show a configuration warning.
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''; 
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
@@ -42,16 +41,12 @@ const S3Icon = () => (
 const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading }) => {
   const [formData, setFormData] = useState<BrandProfile>(initialData);
   const [newColor, setNewColor] = useState('#000000');
-  
-  // Real Google Drive State
-  const [isDriveApiLoaded, setIsDriveApiLoaded] = useState(false);
   const [tokenClient, setTokenClient] = useState<any>(null);
-  const [driveError, setDriveError] = useState<string | null>(null);
-
-  // Mock S3 State
+  const [pickerInited, setPickerInited] = useState(false);
   const [s3Status, setS3Status] = useState<'idle' | 'connecting' | 'connected'>('idle');
+  
+  const { showToast } = useNotification();
 
-  // Initialize Google API and Identity Services
   useEffect(() => {
     const loadScript = (src: string) => {
       return new Promise((resolve, reject) => {
@@ -65,50 +60,55 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
       });
     };
 
-    // Load both libraries
     Promise.all([
       loadScript('https://apis.google.com/js/api.js'),
       loadScript('https://accounts.google.com/gsi/client'),
     ])
     .then(() => {
-      // 1. Load Picker API
-      window.gapi.load('picker', () => {
-        console.log('Picker API loaded');
-      });
+      // Initialize Picker API
+      if (window.gapi) {
+          window.gapi.load('picker', () => {
+              console.log('Picker loaded');
+              setPickerInited(true);
+          });
+      }
 
-      // 2. Initialize Token Client (GIS)
+      // Initialize Identity Services
       if (window.google && window.google.accounts) {
-          try {
-            const client = window.google.accounts.oauth2.initTokenClient({
-                client_id: GOOGLE_CLIENT_ID,
-                scope: SCOPES,
-                callback: (response: any) => {
-                    if (response.error !== undefined) {
-                        setDriveError(`Auth Error: ${response.error}`);
-                        return;
-                    }
-                    if (response.access_token) {
-                        createPicker(response.access_token);
-                    }
-                },
-            });
-            setTokenClient(client);
-            setIsDriveApiLoaded(true);
-          } catch (e) {
-            console.error("Error initializing Google Token Client", e);
+          if (GOOGLE_CLIENT_ID) {
+              try {
+                const client = window.google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_CLIENT_ID,
+                    scope: SCOPES,
+                    callback: (response: any) => {
+                        if (response.error !== undefined) {
+                            showToast(`Drive Auth Error: ${response.error}`, 'error');
+                            return;
+                        }
+                        if (response.access_token) {
+                            // Save token to state for later use in App.tsx
+                            setFormData(prev => ({ ...prev, driveAccessToken: response.access_token }));
+                            createPicker(response.access_token);
+                        }
+                    },
+                });
+                setTokenClient(client);
+              } catch (e) {
+                console.error(e);
+                showToast("Failed to init Google Auth", 'error');
+              }
           }
       }
     })
     .catch((err) => {
-      console.error('Failed to load Google Scripts', err);
-      setDriveError('Failed to load Google API');
+      console.error(err);
+      showToast("Failed to load Google Scripts", 'error');
     });
   }, []);
 
   const createPicker = (accessToken: string) => {
-    setDriveError(null);
-    if (!window.google || !window.google.picker) {
-        setDriveError('Picker API not ready');
+    if (!pickerInited || !window.google || !window.google.picker) {
+        showToast("Google Picker API not ready. Please try again in a moment.", 'error');
         return;
     }
 
@@ -124,24 +124,31 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                 driveFolderId: folderId,
                 driveFolderName: folderName
             }));
-            
-            // Reset S3
             setS3Status('idle');
+            showToast(`Connected to folder: ${folderName}`, 'success');
+        } else if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.CANCEL) {
+            console.log('Picker canceled');
         }
     };
 
-    // Create the picker specifically for folders
-    const view = new window.google.picker.View(window.google.picker.ViewId.FOLDERS);
-    view.setMimeTypes('application/vnd.google-apps.folder');
+    // Use DocsView configured for folders to ensure folder selection is enabled
+    const view = new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
+        .setSelectFolderEnabled(true)
+        .setIncludeFolders(true)
+        .setMimeTypes('application/vnd.google-apps.folder');
 
-    const picker = new window.google.picker.PickerBuilder()
+    const pickerBuilder = new window.google.picker.PickerBuilder()
         .addView(view)
         .setOAuthToken(accessToken)
-        .setDeveloperKey(process.env.API_KEY || '') // Using the Gemini API Key as Developer Key (often interchangeable for simple setups)
         .setCallback(pickerCallback)
-        .setTitle('Select an Ad Library Folder')
-        .build();
-    
+        .setTitle('Select an Ad Library Folder');
+
+    // Add Developer Key if available (usually required for Picker)
+    if (process.env.API_KEY) {
+        pickerBuilder.setDeveloperKey(process.env.API_KEY);
+    }
+        
+    const picker = pickerBuilder.build();
     picker.setVisible(true);
   };
 
@@ -153,9 +160,14 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+          showToast("Logo file too large (max 5MB)", 'error');
+          return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo: reader.result as string }));
+        showToast("Logo uploaded successfully", 'success');
       };
       reader.readAsDataURL(file);
     }
@@ -173,35 +185,43 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
 
   const handleConnectDrive = () => {
     if (!GOOGLE_CLIENT_ID) {
-        // Fallback demo mode if no Client ID is configured
-        if (confirm("Missing GOOGLE_CLIENT_ID in configuration. Click OK to simulate connection, or Cancel to stay.")) {
-             setFormData(prev => ({ ...prev, librarySource: 'drive', driveFolderName: 'Simulated Drive Folder' }));
+        if (confirm("Missing GOOGLE_CLIENT_ID. Click OK to simulate connection.")) {
+             setFormData(prev => ({ 
+                 ...prev, 
+                 librarySource: 'drive', 
+                 driveFolderName: 'Simulated Folder',
+                 driveAccessToken: 'simulated-token'
+             }));
              setS3Status('idle');
+             showToast("Simulated Drive Connection Active", 'info');
         }
         return;
     }
     
     if (tokenClient) {
-        // Trigger the OAuth flow.
-        // We use requestAccessToken({prompt: ''}) to skip consent if already granted.
-        tokenClient.requestAccessToken({prompt: ''});
+        // Force prompt to ensure we get a fresh token if needed or user can switch accounts
+        tokenClient.requestAccessToken({prompt: 'consent'});
     } else {
-        setDriveError("Google API not fully loaded yet.");
+        showToast("Google API still loading...", 'info');
     }
   };
 
   const handleConnectS3 = () => {
     if (s3Status === 'connected') return;
     setS3Status('connecting');
-    // Mock S3 Connection
     setTimeout(() => {
         setS3Status('connected');
-        setFormData(prev => ({ ...prev, librarySource: 's3', driveFolderId: undefined, driveFolderName: undefined }));
+        setFormData(prev => ({ ...prev, librarySource: 's3', driveFolderId: undefined }));
+        showToast("Connected to Amazon S3 Bucket", 'success');
     }, 1500);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.adCopy.length < 10) {
+        showToast("Please enter a more descriptive ad copy (min 10 chars).", 'error');
+        return;
+    }
     onSubmit(formData);
   };
 
@@ -218,7 +238,6 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         <div className="space-y-3">
              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Swipe File Library</label>
              <div className="grid grid-cols-2 gap-3">
-                 {/* Google Drive Button */}
                  <button
                     type="button"
                     onClick={handleConnectDrive}
@@ -239,12 +258,8 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                             {formData.driveFolderName || 'Folder Selected'}
                         </div>
                     )}
-                     {formData.librarySource !== 'drive' && (
-                        <div className="text-[10px] text-gray-400">Select Folder</div>
-                    )}
                  </button>
 
-                 {/* Amazon S3 Button */}
                  <button
                     type="button"
                     onClick={handleConnectS3}
@@ -258,54 +273,32 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                         <S3Icon />
                         <span className={`text-sm font-semibold ${s3Status === 'connected' ? 'text-orange-800' : 'text-gray-700'}`}>Amazon S3</span>
                     </div>
-                    {s3Status === 'connecting' && (
-                        <div className="text-xs text-gray-400 animate-pulse">Connecting...</div>
-                    )}
-                    {s3Status === 'connected' && (
-                        <div className="flex items-center text-[10px] text-orange-600 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>
-                            Synced
-                        </div>
-                    )}
-                    {s3Status === 'idle' && (
-                        <div className="text-[10px] text-gray-400">Connect Bucket</div>
-                    )}
+                    {s3Status === 'connecting' && <div className="text-xs text-gray-400 animate-pulse">Connecting...</div>}
+                    {s3Status === 'connected' && <div className="flex items-center text-[10px] text-orange-600 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>Synced</div>}
                  </button>
              </div>
-             
-             {driveError && (
-                 <p className="text-[10px] text-red-500 mt-1">{driveError}</p>
-             )}
-
              <p className="text-[10px] text-gray-400">
-                {formData.librarySource === 'drive' ? `Analyizing assets in '${formData.driveFolderName || 'Selected Folder'}'` : 
-                 s3Status === 'connected' ? "Using 'ad-genie-bucket-prod' from S3." : 
-                 "Connect cloud storage to browse your own ad library, or use our curated defaults."}
+                {formData.librarySource === 'drive' ? `Analyze assets in '${formData.driveFolderName || 'Folder'}'` : 
+                 s3Status === 'connected' ? "Using S3 bucket assets." : 
+                 "Connect cloud storage to browse your own ads, or use our curated defaults."}
              </p>
         </div>
 
-        {/* Brand Assets - Condensed */}
+        {/* Simplified Asset Sections */}
         <div className="space-y-4 pt-6 border-t border-dashed border-gray-200">
              <div className="flex items-start justify-between gap-4">
                  <div className="flex-1">
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Palette</label>
                     <div className="flex flex-wrap gap-2">
                         {formData.colors.map((color, idx) => (
-                        <button key={idx} type="button" onClick={() => removeColor(color)} className="w-8 h-8 rounded-full shadow-sm border border-gray-100 relative group transition-transform hover:scale-110">
+                        <button key={idx} type="button" onClick={() => removeColor(color)} className="w-8 h-8 rounded-full shadow-sm border border-gray-100 relative group">
                             <div className="w-full h-full rounded-full" style={{ backgroundColor: color }} />
                             <div className="absolute inset-0 bg-black/20 rounded-full hidden group-hover:flex items-center justify-center text-white text-xs">×</div>
                         </button>
                         ))}
                         <div className="relative">
-                            <input
-                                type="color"
-                                value={newColor}
-                                onChange={(e) => setNewColor(e.target.value)}
-                                className="opacity-0 absolute inset-0 w-8 h-8 cursor-pointer"
-                            />
-                            <button type="button" onClick={addColor} className="w-8 h-8 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-black hover:text-black transition-colors bg-gray-50">
-                                <span className="text-base">+</span>
-                            </button>
+                            <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} className="opacity-0 absolute inset-0 w-8 h-8 cursor-pointer" />
+                            <button type="button" onClick={addColor} className="w-8 h-8 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-black bg-gray-50">+</button>
                         </div>
                     </div>
                  </div>
@@ -315,10 +308,10 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                     {formData.logo ? (
                         <div className="relative group w-full h-12">
                             <img src={formData.logo} alt="Logo" className="w-full h-full object-contain border border-gray-100 rounded-lg p-1 bg-gray-50" />
-                            <button onClick={() => setFormData(prev => ({...prev, logo: null}))} className="absolute -top-1 -right-1 bg-gray-900 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 shadow-sm transition-opacity">×</button>
+                            <button onClick={() => setFormData(prev => ({...prev, logo: null}))} className="absolute -top-1 -right-1 bg-gray-900 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100">×</button>
                         </div>
                     ) : (
-                    <label className="cursor-pointer h-12 border border-gray-200 bg-gray-50 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all w-full flex items-center justify-center gap-1">
+                    <label className="cursor-pointer h-12 border border-gray-200 bg-gray-50 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-900 transition-all w-full flex items-center justify-center gap-1">
                         <span>📂</span> Upload
                         <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                     </label>
@@ -327,62 +320,41 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
              </div>
         </div>
 
-        {/* Concept & Copy */}
         <div className="pt-6 border-t border-dashed border-gray-200">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            Ad Concept & Copy
-          </label>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ad Concept & Copy</label>
           <textarea
             name="adCopy"
             value={formData.adCopy}
             onChange={handleChange}
             required
             rows={4}
-            placeholder="A minimalist sneaker campaign on a concrete background..."
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-black focus:border-black focus:bg-white outline-none transition-all resize-none text-sm leading-relaxed"
+            placeholder="Describe your ad campaign..."
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:ring-1 focus:ring-black focus:border-black outline-none resize-none"
           />
         </div>
 
-        {/* Brand Voice Dropdown style */}
         <div className="grid grid-cols-2 gap-4">
              <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Voice</label>
                 <div className="relative">
-                    <select
-                        name="brandVoice"
-                        value={formData.brandVoice}
-                        onChange={handleChange}
-                        className="w-full appearance-none px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-xs font-medium focus:outline-none focus:border-black focus:bg-white cursor-pointer transition-colors"
-                    >
+                    <select name="brandVoice" value={formData.brandVoice} onChange={handleChange} className="w-full appearance-none px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium focus:outline-none focus:border-black">
                         <option value="">Default</option>
                         <option value="Professional">Professional</option>
                         <option value="Playful">Playful</option>
                         <option value="Luxury">Luxury</option>
                         <option value="Urgent">Urgent</option>
                     </select>
-                     <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
                 </div>
              </div>
-
              <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Typography</label>
                 <div className="relative">
-                    <select
-                        name="typography"
-                        value={formData.typography}
-                        onChange={handleChange}
-                        className="w-full appearance-none px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-xs font-medium focus:outline-none focus:border-black focus:bg-white cursor-pointer transition-colors"
-                    >
+                    <select name="typography" value={formData.typography} onChange={handleChange} className="w-full appearance-none px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium focus:outline-none focus:border-black">
                         <option value="">Default</option>
                         <option value="Modern Sans">Modern Sans</option>
                         <option value="Classic Serif">Classic Serif</option>
                         <option value="Bold Display">Bold Display</option>
                     </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
                 </div>
              </div>
         </div>
@@ -390,22 +362,19 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         <div className="mt-auto pt-6">
           <button
             type="submit"
-            disabled={!formData.adCopy || isLoading}
-            className="w-full bg-black text-white font-semibold py-4 rounded-xl shadow-lg shadow-gray-200 transform transition-all hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center space-x-2"
+            disabled={isLoading}
+            className="w-full bg-black text-white font-semibold py-4 rounded-xl shadow-lg transition-all hover:bg-gray-800 disabled:opacity-50 flex justify-center items-center space-x-2"
           >
             {isLoading ? (
                 <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Analyzing Library...</span>
+                    <span>Processing...</span>
                 </>
             ) : (
-                <>
-                 <span>✨</span>
-                 <span>Generate Options</span>
-                </>
+                <><span>✨</span><span>Generate Options</span></>
             )}
           </button>
         </div>

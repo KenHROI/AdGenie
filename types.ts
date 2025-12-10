@@ -8,13 +8,14 @@ export interface BrandProfile {
   librarySource: 'default' | 'drive' | 's3';
   driveFolderId?: string;
   driveFolderName?: string;
+  driveAccessToken?: string;
 }
 
 export interface AdTemplate {
   id: string;
   name: string;
   description: string;
-  imageUrl: string; // Placeholder URL
+  imageUrl: string; // Placeholder or Thumbnail URL
   tags: string[];
 }
 
@@ -35,4 +36,12 @@ export enum AppStep {
 export enum GeminiModel {
   ANALYSIS = 'gemini-2.5-flash',
   IMAGE_GEN = 'gemini-3-pro-image-preview',
+}
+
+export type NotificationType = 'success' | 'error' | 'info';
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: NotificationType;
 }

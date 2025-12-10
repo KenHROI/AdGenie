@@ -6,6 +6,10 @@ import SuggestionSelector from './components/SuggestionSelector';
 import ImageGenerator from './components/ImageGenerator';
 import { AppStep, BrandProfile, AdTemplate } from './types';
 import { analyzeAdCopyForStyles } from './services/geminiService';
+import { listImagesInFolder } from './services/driveService';
+import { NotificationProvider, useNotification } from './context/NotificationContext';
+import ToastContainer from './components/Toast';
+import { AD_LIBRARY } from './constants';
 
 const INITIAL_BRAND_DATA: BrandProfile = {
   colors: [],
@@ -16,7 +20,7 @@ const INITIAL_BRAND_DATA: BrandProfile = {
   librarySource: 'default',
 };
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.INPUT);
   const [brandData, setBrandData] = useState<BrandProfile>(INITIAL_BRAND_DATA);
   const [recommendedIds, setRecommendedIds] = useState<string[]>([]);
@@ -24,16 +28,49 @@ const App: React.FC = () => {
   const [customSeeds, setCustomSeeds] = useState<string[]>([]);
   const [variationsPerSeed, setVariationsPerSeed] = useState(2);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // New state to hold available templates (Static or Drive)
+  const [availableTemplates, setAvailableTemplates] = useState<AdTemplate[]>(AD_LIBRARY);
+
+  const { showToast } = useNotification();
 
   const handleInputSubmit = async (data: BrandProfile) => {
     setBrandData(data);
     setIsAnalyzing(true);
+    
+    let templatesToAnalyze = AD_LIBRARY;
+
     try {
-      const ids = await analyzeAdCopyForStyles(data.adCopy);
+      // 1. Fetch Drive Images if needed
+      if (data.librarySource === 'drive' && data.driveFolderId && data.driveAccessToken) {
+          try {
+              showToast("Fetching Drive files...", 'info');
+              const driveTemplates = await listImagesInFolder(data.driveFolderId, data.driveAccessToken);
+              if (driveTemplates.length > 0) {
+                  templatesToAnalyze = driveTemplates;
+                  showToast(`Found ${driveTemplates.length} images in Drive`, 'success');
+              } else {
+                  showToast("Drive folder is empty. Using default library.", 'error');
+              }
+          } catch (driveErr: any) {
+              console.error(driveErr);
+              showToast(`Drive Error: ${driveErr.message}`, 'error');
+              // Fallback to default
+          }
+      }
+
+      setAvailableTemplates(templatesToAnalyze);
+
+      // 2. Analyze
+      const ids = await analyzeAdCopyForStyles(data.adCopy, templatesToAnalyze);
       setRecommendedIds(ids);
       setCurrentStep(AppStep.SELECTION);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      showToast("Analysis failed. Showing defaults.", 'error');
+      // If critical fail, still go to selection with everything?
+      // Just fallback to default selection
+      setRecommendedIds(templatesToAnalyze.slice(0, 3).map(t => t.id));
       setCurrentStep(AppStep.SELECTION);
     } finally {
       setIsAnalyzing(false);
@@ -62,8 +99,6 @@ const App: React.FC = () => {
 
         {/* Right Panel: Content/Results */}
         <div className="flex-1 h-full overflow-hidden bg-white relative">
-             {/* Render Content Based on Step */}
-             
              {/* Empty/Welcome State */}
              {currentStep === AppStep.INPUT && !isAnalyzing && (
                  <div className="h-full flex flex-col relative overflow-hidden bg-white">
@@ -81,6 +116,7 @@ const App: React.FC = () => {
                    recommendedIds={recommendedIds}
                    onBack={() => setCurrentStep(AppStep.INPUT)}
                    onNext={handleSelectionNext}
+                   availableTemplates={availableTemplates}
                  />
              )}
 
@@ -98,13 +134,22 @@ const App: React.FC = () => {
                 <div className="absolute inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
                     <div className="w-16 h-16 border-4 border-gray-100 border-t-black rounded-full animate-spin mb-6"></div>
                     <p className="text-gray-900 font-bold text-lg">Analyzing Brand Identity...</p>
-                    <p className="text-gray-500 text-sm mt-2">Selecting best-fit layouts</p>
+                    <p className="text-gray-500 text-sm mt-2">Connecting dots...</p>
                 </div>
              )}
+             
+             {/* Global Toasts */}
+             <ToastContainer />
         </div>
       </div>
     </Layout>
   );
 };
+
+const App: React.FC = () => (
+    <NotificationProvider>
+        <MainApp />
+    </NotificationProvider>
+);
 
 export default App;

@@ -1,14 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { AdTemplate } from '../types';
-import { AD_LIBRARY } from '../constants';
 
 interface SuggestionSelectorProps {
   recommendedIds: string[];
   onBack: () => void;
   onNext: (selectedTemplates: AdTemplate[], customSeeds: string[], variations: number) => void;
+  availableTemplates: AdTemplate[];
 }
 
-const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds, onBack, onNext }) => {
+const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds, onBack, onNext, availableTemplates }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(recommendedIds));
   const [customSeeds, setCustomSeeds] = useState<string[]>([]);
   const [variations, setVariations] = useState(2);
@@ -44,7 +45,7 @@ const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds,
   }
 
   const handleContinue = () => {
-    const selectedTemplates = AD_LIBRARY.filter(t => selectedIds.has(t.id));
+    const selectedTemplates = availableTemplates.filter(t => selectedIds.has(t.id));
     onNext(selectedTemplates, customSeeds, variations);
   };
 
@@ -80,14 +81,14 @@ const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds,
       <div className="flex-1 overflow-y-auto pr-2 space-y-10 custom-scrollbar">
           {/* Templates */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {AD_LIBRARY.map((template) => {
+            {availableTemplates.map((template) => {
             const isSelected = selectedIds.has(template.id);
             const isRecommended = recommendedIds.includes(template.id);
             return (
                 <div
                 key={template.id}
                 onClick={() => toggleSelection(template.id)}
-                className={`group relative cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 aspect-square ${
+                className={`group relative cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 aspect-square border border-gray-100 bg-gray-50 ${
                     isSelected
                     ? 'ring-2 ring-black shadow-xl scale-[1.02]'
                     : 'hover:shadow-lg hover:scale-[1.01]'
@@ -97,6 +98,9 @@ const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds,
                     src={template.imageUrl}
                     alt={template.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/f3f4f6/9ca3af?text=Preview';
+                    }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-5 flex flex-col justify-end">
                     <p className="text-white font-bold text-sm">{template.name}</p>
