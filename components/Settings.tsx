@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { describeImageStyle } from '../services/geminiService';
@@ -10,42 +10,88 @@ interface SettingsProps {
   onRemoveTemplate: (id: string) => void;
 }
 
+// Utility to resize and compress images before processing
+const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth || height > maxWidth) {
+                    if (width > height) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    } else {
+                        width = Math.round((width * maxWidth) / height);
+                        height = maxWidth;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error("Could not get canvas context"));
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+};
+
 const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState('');
+  const [progressState, setProgressState] = useState({ current: 0, total: 0 });
   const { showToast } = useNotification();
+  
+  // Use a ref to track mounted state to avoid setting state after unmount during long processes
+  const isMounted = useRef(true);
+  React.useEffect(() => {
+    return () => { isMounted.current = false; };
+  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    const totalFiles = files.length;
+    setProgressState({ current: 0, total: totalFiles });
+
+    const fileArray: File[] = Array.from(files);
+    let processedCount = 0;
     let successCount = 0;
     let failCount = 0;
 
-    // Convert FileList to array for easier handling
-    const fileArray: File[] = Array.from(files);
+    // Concurrency Limit (max parallel requests)
+    const CONCURRENCY_LIMIT = 3;
+    let index = 0;
 
-    for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
-        setUploadProgress(`Processing ${i + 1}/${fileArray.length}`);
-
-        if (file.size > 5 * 1024 * 1024) {
-             showToast(`Skipped ${file.name} (too large > 5MB)`, "error");
-             failCount++;
-             continue;
-        }
+    const processNext = async (): Promise<void> => {
+        if (index >= fileArray.length) return;
+        
+        const currentIndex = index++;
+        const file = fileArray[currentIndex];
 
         try {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+            if (file.size > 20 * 1024 * 1024) { // 20MB Hard limit before optimization check
+                throw new Error("File too large (>20MB)");
+            }
 
-            // Analyze with AI
-            // We await here to avoid rate limiting the AI service if we send 50 requests at once
+            // 1. Optimize Image (Client-side resize)
+            const base64 = await optimizeImage(file);
+
+            // 2. Analyze with AI
             const aiData = await describeImageStyle(base64);
 
             const newTemplate: AdTemplate = {
@@ -56,23 +102,46 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 tags: aiData.tags || ["custom"],
             };
 
-            onAddTemplate(newTemplate);
-            successCount++;
+            if (isMounted.current) {
+                onAddTemplate(newTemplate);
+                successCount++;
+            }
 
-        } catch (error) {
-            console.error(`Error processing ${file.name}`, error);
+        } catch (error: any) {
+            console.error(`Error processing ${file.name}:`, error);
             failCount++;
+            // Optional: Show specific error for single file failures if needed, 
+            // but for bulk, usually better to summarize at end or log.
+        } finally {
+            processedCount++;
+            if (isMounted.current) {
+                setProgressState(prev => ({ ...prev, current: processedCount }));
+            }
+            // Recursive call to process next item in queue
+            await processNext();
         }
+    };
+
+    // Initialize worker pool
+    const workers = [];
+    const initialPoolSize = Math.min(totalFiles, CONCURRENCY_LIMIT);
+    
+    for (let i = 0; i < initialPoolSize; i++) {
+        workers.push(processNext());
     }
 
-    setIsUploading(false);
-    setUploadProgress('');
+    await Promise.all(workers);
 
-    if (successCount > 0) {
-        showToast(`Successfully added ${successCount} images to library`, "success");
-    }
-    if (failCount > 0) {
-        showToast(`Failed to upload ${failCount} images`, "error");
+    if (isMounted.current) {
+        setIsUploading(false);
+        setProgressState({ current: 0, total: 0 });
+
+        if (successCount > 0) {
+            showToast(`Successfully added ${successCount} images to library`, "success");
+        }
+        if (failCount > 0) {
+            showToast(`Failed to process ${failCount} images`, "error");
+        }
     }
     
     // Reset input
@@ -107,9 +176,17 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     {/* Upload Card */}
                     <label className={`relative rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-all cursor-pointer flex flex-col items-center justify-center aspect-square group ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                          {isUploading ? (
-                             <div className="flex flex-col items-center">
-                                 <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2"></div>
-                                 <span className="text-[10px] text-gray-400 font-mono">{uploadProgress}</span>
+                             <div className="flex flex-col items-center w-full px-4 text-center">
+                                 <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2 mx-auto"></div>
+                                 <span className="text-[10px] text-gray-400 font-mono block">
+                                    {progressState.current} / {progressState.total}
+                                 </span>
+                                 <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+                                     <div 
+                                        className="bg-black h-1 rounded-full transition-all duration-300" 
+                                        style={{ width: `${(progressState.current / Math.max(progressState.total, 1)) * 100}%` }}
+                                     ></div>
+                                 </div>
                              </div>
                          ) : (
                             <>
