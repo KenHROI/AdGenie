@@ -71,6 +71,58 @@ export const analyzeAdCopyForStyles = async (
   }
 };
 
+export const describeImageStyle = async (base64Image: string): Promise<Partial<AdTemplate>> => {
+  const ai = getAiClient();
+  
+  let cleanBase64 = base64Image;
+  if (base64Image.includes('base64,')) {
+      cleanBase64 = base64Image.split(',')[1];
+  }
+
+  const prompt = `
+    Analyze this image to be used as an advertisement template.
+    Identify its layout structure, visual style, and key composition elements.
+    
+    Return a JSON object with:
+    - name: A short, punchy 2-3 word name for this style (e.g. "Minimalist Tech", "Bold Sale").
+    - description: A concise 1-sentence description of the layout and vibe.
+    - tags: An array of 3-5 keywords describing the style.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+        model: GeminiModel.ANALYSIS, // Using 2.5 Flash for multimodal analysis
+        contents: {
+            parts: [
+                { text: prompt },
+                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
+            ]
+        },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+            }
+        }
+    });
+    
+    const jsonStr = response.text;
+    return JSON.parse(jsonStr) as Partial<AdTemplate>;
+  } catch (error) {
+      console.error("Error describing image:", error);
+      return {
+          name: "Custom Upload",
+          description: "User uploaded template",
+          tags: ["custom", "upload"]
+      };
+  }
+};
+
 export const generateAdVariation = async (
   seedImageBase64: string,
   brand: BrandProfile,

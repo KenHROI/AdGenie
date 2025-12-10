@@ -1,12 +1,26 @@
 
 import React from 'react';
+import { AppStep } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
+  currentStep: AppStep;
+  onNavigate: (step: AppStep) => void;
 }
 
-const SidebarItem = ({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) => (
+const SidebarItem = ({ 
+    icon, 
+    label, 
+    active = false,
+    onClick 
+}: { 
+    icon: React.ReactNode; 
+    label: string; 
+    active?: boolean;
+    onClick: () => void;
+}) => (
   <button
+    onClick={onClick}
     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
       active
         ? 'bg-gray-50 text-black font-medium'
@@ -20,7 +34,7 @@ const SidebarItem = ({ icon, label, active = false }: { icon: React.ReactNode; l
   </button>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = ({ children, currentStep, onNavigate }) => {
   return (
     <div className="h-screen flex overflow-hidden bg-white font-sans text-gray-900">
       {/* Sidebar */}
@@ -49,8 +63,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Menu */}
             <nav className="space-y-1">
-                <SidebarItem icon="✨" label="Create Campaign" active />
-                <SidebarItem icon="⚙️" label="Settings" />
+                <SidebarItem 
+                    icon="✨" 
+                    label="Create Campaign" 
+                    active={currentStep !== AppStep.SETTINGS} 
+                    onClick={() => onNavigate(AppStep.INPUT)}
+                />
+                <SidebarItem 
+                    icon="⚙️" 
+                    label="Settings" 
+                    active={currentStep === AppStep.SETTINGS}
+                    onClick={() => onNavigate(AppStep.SETTINGS)}
+                />
             </nav>
         </div>
 

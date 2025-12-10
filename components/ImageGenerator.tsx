@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { generateAdVariation } from '../services/geminiService';
 import { useNotification } from '../context/NotificationContext';
+import JSZip from 'jszip';
 
 interface ImageGeneratorProps {
   brandData: BrandProfile;
@@ -95,7 +96,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                         });
                      } catch (e) {
                          console.warn("Could not fetch image for base64 conversion, trying direct URL", e);
-                         // Some APIs might take URL directly, but Gemini SDK usually wants inline data for robustness
                      }
                  }
 
@@ -156,6 +156,31 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       showToast("Image downloading...", 'success');
   };
 
+  const handleDownloadAll = async () => {
+      if (results.length === 0) return;
+      
+      showToast("Preparing ZIP file...", 'info');
+      const zip = new JSZip();
+      
+      results.forEach((img, i) => {
+          // Remove data:image/png;base64, prefix
+          const data = img.base64.split(',')[1];
+          zip.file(`ad-genie-variation-${i + 1}-${img.id}.png`, data, { base64: true });
+      });
+
+      try {
+          const content = await zip.generateAsync({ type: "blob" });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(content);
+          link.download = `ad-genie-batch-${Date.now()}.zip`;
+          link.click();
+          showToast("Batch download started!", 'success');
+      } catch (err) {
+          console.error("ZIP Error:", err);
+          showToast("Failed to create ZIP file", 'error');
+      }
+  };
+
   if (!hasKey) {
       return (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white">
@@ -182,6 +207,15 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             </h1>
           </div>
           <div className="flex space-x-2">
+             {results.length > 0 && !isGenerating && (
+                 <button 
+                    onClick={handleDownloadAll}
+                    className="flex items-center space-x-2 bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-all"
+                 >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span>Download All (ZIP)</span>
+                 </button>
+             )}
              <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm font-medium px-4 py-2">
                 Back
              </button>

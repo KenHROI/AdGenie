@@ -31,6 +31,7 @@ export enum AppStep {
   INPUT = 'INPUT',
   SELECTION = 'SELECTION',
   GENERATION = 'GENERATION',
+  SETTINGS = 'SETTINGS',
 }
 
 export enum GeminiModel {

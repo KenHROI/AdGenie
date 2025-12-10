@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrandProfile } from '../types';
 import { useNotification } from '../context/NotificationContext';
+import { listImagesInFolder } from '../services/driveService';
 
 interface InputFormProps {
   initialData: BrandProfile;
@@ -20,6 +21,12 @@ declare global {
 }
 
 // Icons
+const DefaultIcon = () => (
+  <svg className="w-5 h-5 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
 const DriveIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
     <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.9 2.5 3.2 3.3l12.3-21.3-6.5-11.3-12.85 22.65c0 .05 0 .05 0 .05z" fill="#0066da"/>
@@ -44,6 +51,7 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
   const [tokenClient, setTokenClient] = useState<any>(null);
   const [pickerInited, setPickerInited] = useState(false);
   const [s3Status, setS3Status] = useState<'idle' | 'connecting' | 'connected'>('idle');
+  const [isValidatingDrive, setIsValidatingDrive] = useState(false);
   
   const { showToast } = useNotification();
 
@@ -86,7 +94,6 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                             return;
                         }
                         if (response.access_token) {
-                            // Save token to state for later use in App.tsx
                             setFormData(prev => ({ ...prev, driveAccessToken: response.access_token }));
                             createPicker(response.access_token);
                         }
@@ -112,26 +119,45 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         return;
     }
 
-    const pickerCallback = (data: any) => {
+    const pickerCallback = async (data: any) => {
         if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
             const doc = data[window.google.picker.Response.DOCUMENTS][0];
             const folderId = doc[window.google.picker.Document.ID];
             const folderName = doc[window.google.picker.Document.NAME];
             
-            setFormData(prev => ({
-                ...prev,
-                librarySource: 'drive',
-                driveFolderId: folderId,
-                driveFolderName: folderName
-            }));
-            setS3Status('idle');
-            showToast(`Connected to folder: ${folderName}`, 'success');
+            setIsValidatingDrive(true);
+            showToast(`Scanning '${folderName}' for images...`, 'info');
+
+            try {
+                // Validate folder content immediately
+                const files = await listImagesInFolder(folderId, accessToken);
+                
+                if (files.length === 0) {
+                     showToast(`Folder '${folderName}' contains no images. Please select another.`, 'error');
+                     setIsValidatingDrive(false);
+                     return; // Do not update state
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    librarySource: 'drive',
+                    driveFolderId: folderId,
+                    driveFolderName: folderName
+                }));
+                setS3Status('idle');
+                showToast(`Connected: ${folderName} (${files.length} images)`, 'success');
+            } catch (err) {
+                console.error("Error checking folder:", err);
+                showToast("Failed to verify folder contents.", 'error');
+            } finally {
+                setIsValidatingDrive(false);
+            }
+
         } else if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.CANCEL) {
             console.log('Picker canceled');
         }
     };
 
-    // Use DocsView configured for folders to ensure folder selection is enabled
     const view = new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
         .setSelectFolderEnabled(true)
         .setIncludeFolders(true)
@@ -143,7 +169,6 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         .setCallback(pickerCallback)
         .setTitle('Select an Ad Library Folder');
 
-    // Add Developer Key if available (usually required for Picker)
     if (process.env.API_KEY) {
         pickerBuilder.setDeveloperKey(process.env.API_KEY);
     }
@@ -183,14 +208,23 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
     setFormData(prev => ({ ...prev, colors: prev.colors.filter(c => c !== colorToRemove) }));
   };
 
+  const handleSetDefault = () => {
+      setFormData(prev => ({ ...prev, librarySource: 'default', driveFolderId: undefined, driveFolderName: undefined }));
+      setS3Status('idle');
+  };
+
   const handleConnectDrive = () => {
+    // If we already have a valid folder and just clicked again, maybe we want to change it?
+    // Always reopen picker.
+    
     if (!GOOGLE_CLIENT_ID) {
         if (confirm("Missing GOOGLE_CLIENT_ID. Click OK to simulate connection.")) {
              setFormData(prev => ({ 
                  ...prev, 
                  librarySource: 'drive', 
                  driveFolderName: 'Simulated Folder',
-                 driveAccessToken: 'simulated-token'
+                 driveAccessToken: 'simulated-token',
+                 driveFolderId: 'simulated-id'
              }));
              setS3Status('idle');
              showToast("Simulated Drive Connection Active", 'info');
@@ -199,7 +233,6 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
     }
     
     if (tokenClient) {
-        // Force prompt to ensure we get a fresh token if needed or user can switch accounts
         tokenClient.requestAccessToken({prompt: 'consent'});
     } else {
         showToast("Google API still loading...", 'info');
@@ -236,51 +269,75 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         
         {/* Swipe File Library */}
         <div className="space-y-3">
-             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Swipe File Library</label>
-             <div className="grid grid-cols-2 gap-3">
+             <div className="flex justify-between items-baseline">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Swipe File Library</label>
+             </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                 {/* Default Option */}
+                 <button
+                    type="button"
+                    onClick={handleSetDefault}
+                    className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${
+                        formData.librarySource === 'default'
+                        ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-200 shadow-sm' 
+                        : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                 >
+                    <DefaultIcon />
+                    <span className={`text-xs font-semibold ${formData.librarySource === 'default' ? 'text-purple-700' : 'text-gray-700'}`}>Default</span>
+                 </button>
+
+                 {/* Google Drive Option */}
                  <button
                     type="button"
                     onClick={handleConnectDrive}
                     className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${
                         formData.librarySource === 'drive'
-                        ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200' 
+                        ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200 shadow-sm' 
                         : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                  >
-                    <div className="flex items-center space-x-2">
+                    {isValidatingDrive ? (
+                        <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    ) : (
                         <DriveIcon />
-                        <span className={`text-sm font-semibold ${formData.librarySource === 'drive' ? 'text-blue-700' : 'text-gray-700'}`}>Google Drive</span>
-                    </div>
-                    
-                    {formData.librarySource === 'drive' && (
-                        <div className="flex items-center text-[10px] text-blue-600 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span>
-                            {formData.driveFolderName || 'Folder Selected'}
-                        </div>
                     )}
+                    <div className="flex flex-col items-center">
+                        <span className={`text-xs font-semibold ${formData.librarySource === 'drive' ? 'text-blue-700' : 'text-gray-700'}`}>Google Drive</span>
+                        {formData.librarySource === 'drive' && (
+                             <span className="text-[10px] text-blue-500 max-w-[80px] truncate">{formData.driveFolderName}</span>
+                        )}
+                    </div>
                  </button>
 
+                 {/* Amazon S3 Option */}
                  <button
                     type="button"
                     onClick={handleConnectS3}
                     className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${
                         s3Status === 'connected' 
-                        ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200' 
+                        ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200 shadow-sm' 
                         : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                  >
-                     <div className="flex items-center space-x-2">
+                     {s3Status === 'connecting' ? (
+                        <div className="w-5 h-5 border-2 border-orange-200 border-t-orange-600 rounded-full animate-spin"></div>
+                     ) : (
                         <S3Icon />
-                        <span className={`text-sm font-semibold ${s3Status === 'connected' ? 'text-orange-800' : 'text-gray-700'}`}>Amazon S3</span>
-                    </div>
-                    {s3Status === 'connecting' && <div className="text-xs text-gray-400 animate-pulse">Connecting...</div>}
-                    {s3Status === 'connected' && <div className="flex items-center text-[10px] text-orange-600 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>Synced</div>}
+                     )}
+                     <div className="flex flex-col items-center">
+                        <span className={`text-xs font-semibold ${s3Status === 'connected' ? 'text-orange-800' : 'text-gray-700'}`}>Amazon S3</span>
+                        {s3Status === 'connected' && <span className="text-[10px] text-orange-500">Active</span>}
+                     </div>
                  </button>
              </div>
-             <p className="text-[10px] text-gray-400">
-                {formData.librarySource === 'drive' ? `Analyze assets in '${formData.driveFolderName || 'Folder'}'` : 
-                 s3Status === 'connected' ? "Using S3 bucket assets." : 
-                 "Connect cloud storage to browse your own ads, or use our curated defaults."}
+             <p className="text-[10px] text-gray-400 text-center">
+                {formData.librarySource === 'drive' 
+                    ? `Scanning folder for ad layouts.` 
+                    : formData.librarySource === 's3' 
+                        ? "Using connected S3 Bucket assets." 
+                        : "Using Ad Genie's curated high-converting templates."}
              </p>
         </div>
 
@@ -362,7 +419,7 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         <div className="mt-auto pt-6">
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isValidatingDrive}
             className="w-full bg-black text-white font-semibold py-4 rounded-xl shadow-lg transition-all hover:bg-gray-800 disabled:opacity-50 flex justify-center items-center space-x-2"
           >
             {isLoading ? (
