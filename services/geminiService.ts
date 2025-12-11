@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Type } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { BrandProfile, AdTemplate, GeminiModel } from "../types";
 import { AD_LIBRARY } from "../constants";
 
