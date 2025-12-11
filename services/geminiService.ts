@@ -38,9 +38,9 @@ export const analyzeAdCopyForStyles = async (
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
+          type: "ARRAY",
           items: {
-            type: Type.STRING
+            type: "STRING"
           }
         }
       }
@@ -93,11 +93,11 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: "OBJECT",
           properties: {
-            name: { type: Type.STRING },
-            description: { type: Type.STRING },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            name: { type: "STRING" },
+            description: { type: "STRING" },
+            tags: { type: "ARRAY", items: { type: "STRING" } }
           }
         }
       }
