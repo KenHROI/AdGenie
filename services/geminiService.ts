@@ -3,9 +3,7 @@ import { BrandProfile, AdTemplate, GeminiModel } from "../types";
 import { AD_LIBRARY } from "../constants";
 
 const getAiClient = () => {
-  return new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
-};
-
+  return new GoogleGenerativeAI(process.env.API_KEY)
 export const analyzeAdCopyForStyles = async (
   adCopy: string,
   availableTemplates: AdTemplate[] = AD_LIBRARY
