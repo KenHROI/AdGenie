@@ -1,4 +1,3 @@
-
 import { GoogleGenerativeAI, Type } from "@google/generative-ai";
 import { BrandProfile, AdTemplate, GeminiModel } from "../types";
 import { AD_LIBRARY } from "../constants";
@@ -35,10 +34,9 @@ export const analyzeAdCopyForStyles = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({ 
       model: GeminiModel.ANALYSIS,
-      contents: prompt,
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -48,8 +46,9 @@ export const analyzeAdCopyForStyles = async (
         }
       }
     });
+    const response = await model.generateContent(prompt);
 
-    const jsonStr = response.text || "[]";
+    const jsonStr = response.response.text() || "[]";
     const selectedIds = JSON.parse(jsonStr) as string[];
     
     // Validate IDs exist
@@ -57,7 +56,7 @@ export const analyzeAdCopyForStyles = async (
     
     // Fallback if AI returns garbage or no matches
     if (validIds.length === 0 && templatesToAnalyze.length > 0) {
-        return templatesToAnalyze.slice(0, 3).map(t => t.id);
+      return templatesToAnalyze.slice(0, 3).map(t => t.id);
     }
     
     return validIds;
@@ -65,7 +64,7 @@ export const analyzeAdCopyForStyles = async (
     console.error("Error analyzing copy:", error);
     // Graceful fallback
     if (templatesToAnalyze.length > 0) {
-        return templatesToAnalyze.slice(0, 3).map(t => t.id);
+      return templatesToAnalyze.slice(0, 3).map(t => t.id);
     }
     return [];
   }
@@ -76,7 +75,7 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
   
   let cleanBase64 = base64Image;
   if (base64Image.includes('base64,')) {
-      cleanBase64 = base64Image.split(',')[1];
+    cleanBase64 = base64Image.split(',')[1];
   }
 
   const prompt = `
@@ -90,36 +89,35 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
   `;
 
   try {
-    const response = await ai.models.generateContent({
-        model: GeminiModel.ANALYSIS, // Using 2.5 Flash for multimodal analysis
-        contents: {
-            parts: [
-                { text: prompt },
-                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
-            ]
-        },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    name: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                }
-            }
+    const model = ai.getGenerativeModel({ 
+      model: GeminiModel.ANALYSIS,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            description: { type: Type.STRING },
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+          }
         }
+      }
     });
     
-    const jsonStr = response.text;
+    const response = await model.generateContent([
+      prompt,
+      { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
+    ]);
+    
+    const jsonStr = response.response.text();
     return JSON.parse(jsonStr) as Partial<AdTemplate>;
   } catch (error) {
-      console.error("Error describing image:", error);
-      return {
-          name: "Custom Upload",
-          description: "User uploaded template",
-          tags: ["custom", "upload"]
-      };
+    console.error("Error describing image:", error);
+    return {
+      name: "Custom Upload",
+      description: "User uploaded template",
+      tags: ["custom", "upload"]
+    };
   }
 };
 
@@ -129,7 +127,6 @@ export const generateAdVariation = async (
   templateName: string
 ): Promise<string | null> => {
   const ai = getAiClient();
-
   const colors = brand.colors.length > 0 ? brand.colors.join(", ") : "brand appropriate colors";
   const voice = brand.brandVoice ? `Brand Voice: ${brand.brandVoice}.` : "";
   const typo = brand.typography ? `Typography Style: ${brand.typography}.` : "";
@@ -152,32 +149,25 @@ export const generateAdVariation = async (
     // Check for valid base64
     let cleanBase64 = seedImageBase64;
     if (seedImageBase64.includes('base64,')) {
-        cleanBase64 = seedImageBase64.split(',')[1];
+      cleanBase64 = seedImageBase64.split(',')[1];
     }
 
-    const response = await ai.models.generateContent({
-      model: GeminiModel.IMAGE_GEN,
-      contents: {
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: cleanBase64,
-            },
-          },
-        ],
-      },
-      config: {
-        imageConfig: {
-            imageSize: "2K",
-            aspectRatio: "1:1"
-        }
-      },
+    const model = ai.getGenerativeModel({ 
+      model: GeminiModel.IMAGE_GEN
     });
 
-    if (response.candidates && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
+    const response = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: cleanBase64,
+        },
+      },
+    ]);
+
+    if (response.response.candidates && response.response.candidates[0].content.parts) {
+      for (const part of response.response.candidates[0].content.parts) {
         if (part.inlineData) {
           return `data:image/png;base64,${part.inlineData.data}`;
         }
@@ -188,10 +178,10 @@ export const generateAdVariation = async (
     console.error("Error generating image:", error);
     // Pass specific error messages up
     if (error.message?.includes('429')) {
-        throw new Error("Quota exceeded. Please try again later.");
+      throw new Error("Quota exceeded. Please try again later.");
     }
     if (error.message?.includes('SAFETY')) {
-        throw new Error("Generation blocked by safety settings. Please refine your copy.");
+      throw new Error("Generation blocked by safety settings. Please refine your copy.");
     }
     throw error;
   }
