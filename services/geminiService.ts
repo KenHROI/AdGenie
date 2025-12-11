@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { BrandProfile, AdTemplate, GeminiModel } from "../types";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai"
+import { BrandProfile, AdTemplate, GeminiModel } from "../types"
 import { AD_LIBRARY } from "../constants";
-
 const getAiClient = () => {
   return new GoogleGenerativeAI(process.env.API_KEY)
   };
@@ -38,9 +37,9 @@ export const analyzeAdCopyForStyles = async (
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: "ARRAY",
+          type: SchemaType.ARRAY,
           items: {
-            type: "STRING"
+            type: SchemaType.STRING
           }
         }
       }
@@ -93,11 +92,11 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: "OBJECT",
+          type: SchemaType.OBJECT,
           properties: {
-            name: { type: "STRING" },
-            description: { type: "STRING" },
-            tags: { type: "ARRAY", items: { type: "STRING" } }
+            name: { type: SchemaType.STRING },
+            description: { type: SchemaType.STRING },
+            tags: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
           }
         }
       }
