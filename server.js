@@ -141,6 +141,15 @@ app.delete('/api/images/:id', async (req, res) => {
   }
 });
 
+// Serve static files from Vite build
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Catch-all route for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
