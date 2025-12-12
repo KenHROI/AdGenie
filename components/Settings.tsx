@@ -6,9 +6,10 @@ import { describeImageStyle } from '../services/geminiService';
 import { uploadTemplate } from '../services/storageService';
 
 interface SettingsProps {
-  templates: AdTemplate[];
-  onAddTemplate: (template: AdTemplate) => void;
-  onRemoveTemplate: (id: string) => void;
+    templates: AdTemplate[];
+    onAddTemplate: (template: AdTemplate) => void;
+    onRemoveTemplate: (id: string) => void;
+    onClearLibrary: () => void;
 }
 
 // Utility to resize and compress images before processing
@@ -56,243 +57,273 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File
     });
 };
 
-const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate }) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [progressState, setProgressState] = useState({ current: 0, total: 0 });
-  
-  const { showToast } = useNotification();
-  
-  // Refs for control
-  const isMounted = useRef(true);
-  const isPausedRef = useRef(false);
-  const isCancelledRef = useRef(false);
+const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary }) => {
+    const [isUploading, setIsUploading] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [progressState, setProgressState] = useState({ current: 0, total: 0 });
+    const [errorLogs, setErrorLogs] = useState<string[]>([]);
 
-  React.useEffect(() => {
-    return () => { isMounted.current = false; };
-  }, []);
+    const { showToast } = useNotification();
 
-  const handlePause = () => {
-      isPausedRef.current = true;
-      setIsPaused(true);
-  };
+    // Refs for control
+    const isMounted = useRef(true);
+    const isPausedRef = useRef(false);
+    const isCancelledRef = useRef(false);
 
-  const handleResume = () => {
-      isPausedRef.current = false;
-      setIsPaused(false);
-  };
+    React.useEffect(() => {
+        return () => { isMounted.current = false; };
+    }, []);
 
-  const handleCancel = () => {
-      isCancelledRef.current = true;
-      isPausedRef.current = false; // ensure we break loops
-      setIsPaused(false);
-      setIsUploading(false);
-      showToast("Upload cancelled", "info");
-  };
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    setIsPaused(false);
-    isPausedRef.current = false;
-    isCancelledRef.current = false;
-
-    const totalFiles = files.length;
-    setProgressState({ current: 0, total: totalFiles });
-
-    const fileArray: File[] = Array.from(files);
-    let processedCount = 0;
-    let successCount = 0;
-    let failCount = 0;
-
-    // Concurrency Limit (max parallel requests)
-    const CONCURRENCY_LIMIT = 3;
-    let index = 0;
-
-    const processNext = async (): Promise<void> => {
-        // Check Cancel
-        if (isCancelledRef.current) return;
-
-        // Check Pause Loop
-        while (isPausedRef.current) {
-            if (isCancelledRef.current) return;
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Get next file index atomically
-        if (index >= fileArray.length) return;
-        const currentIndex = index++;
-        const file = fileArray[currentIndex];
-
-        try {
-            if (file.size > 20 * 1024 * 1024) { 
-                throw new Error("File too large (>20MB)");
-            }
-
-            // 1. Optimize (Client-side)
-            const optimizedFile = await optimizeImage(file);
-            const reader = new FileReader();
-            
-            // Get base64 for AI analysis
-            const base64: string = await new Promise(resolve => {
-                const r = new FileReader();
-                r.onload = () => resolve(r.result as string);
-                r.readAsDataURL(optimizedFile);
-            });
-
-            // 2. Analyze
-            const aiData = await describeImageStyle(base64);
-
-            // 3. Upload via Service (API or Local Fallback)
-            const newTemplate = await uploadTemplate(optimizedFile, {
-                name: aiData.name || "Custom Upload",
-                description: aiData.description || "User uploaded template",
-                tags: aiData.tags || ["custom"]
-            });
-
-            if (isMounted.current && !isCancelledRef.current) {
-                onAddTemplate(newTemplate);
-                successCount++;
-            }
-
-        } catch (error: any) {
-            console.error(`Error processing ${file.name}:`, error);
-            failCount++;
-        } finally {
-            if (!isCancelledRef.current) {
-                processedCount++;
-                if (isMounted.current) {
-                    setProgressState(prev => ({ ...prev, current: processedCount }));
-                }
-                // Recursive call
-                await processNext();
-            }
-        }
+    const handlePause = () => {
+        isPausedRef.current = true;
+        setIsPaused(true);
     };
 
-    // Initialize worker pool
-    const workers = [];
-    const initialPoolSize = Math.min(totalFiles, CONCURRENCY_LIMIT);
-    
-    for (let i = 0; i < initialPoolSize; i++) {
-        workers.push(processNext());
-    }
+    const handleResume = () => {
+        isPausedRef.current = false;
+        setIsPaused(false);
+    };
 
-    await Promise.all(workers);
-
-    if (isMounted.current && !isCancelledRef.current) {
+    const handleCancel = () => {
+        isCancelledRef.current = true;
+        isPausedRef.current = false; // ensure we break loops
+        setIsPaused(false);
         setIsUploading(false);
-        setProgressState({ current: 0, total: 0 });
+        showToast("Upload cancelled", "info");
+    };
 
-        if (successCount > 0) {
-            showToast(`Completed: ${successCount} added`, "success");
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsUploading(true);
+        setIsPaused(false);
+        setErrorLogs([]); // Clear previous errors
+        isPausedRef.current = false;
+        isCancelledRef.current = false;
+
+        const totalFiles = files.length;
+        setProgressState({ current: 0, total: totalFiles });
+
+        const fileArray: File[] = Array.from(files);
+        let processedCount = 0;
+        let successCount = 0;
+        let failCount = 0;
+
+        // Concurrency Limit (max parallel requests)
+        const CONCURRENCY_LIMIT = 5; // Increased for better throughput
+        let index = 0;
+
+        const processNext = async (): Promise<void> => {
+            // Check Cancel
+            if (isCancelledRef.current) return;
+
+            // Check Pause Loop
+            while (isPausedRef.current) {
+                if (isCancelledRef.current) return;
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            // Get next file index atomically
+            if (index >= fileArray.length) return;
+            const currentIndex = index++;
+            const file = fileArray[currentIndex];
+
+            try {
+                if (file.size > 20 * 1024 * 1024) {
+                    throw new Error("File too large (>20MB)");
+                }
+
+                // 1. Optimize (Client-side)
+                const optimizedFile = await optimizeImage(file);
+                const reader = new FileReader();
+
+                // Get base64 for AI analysis
+                const base64: string = await new Promise(resolve => {
+                    const r = new FileReader();
+                    r.onload = () => resolve(r.result as string);
+                    r.readAsDataURL(optimizedFile);
+                });
+
+                // 2. Analyze
+                const aiData = await describeImageStyle(base64);
+
+                // 3. Upload via Service (API or Local Fallback)
+                const newTemplate = await uploadTemplate(optimizedFile, {
+                    name: aiData.name || "Custom Upload",
+                    description: aiData.description || "User uploaded template",
+                    tags: aiData.tags || ["custom"]
+                });
+
+                if (isMounted.current && !isCancelledRef.current) {
+                    onAddTemplate(newTemplate);
+                    successCount++;
+                }
+
+            } catch (error: any) {
+                console.error(`Error processing ${file.name}:`, error);
+                failCount++;
+                if (isMounted.current) {
+                    setErrorLogs(prev => [...prev, `${file.name}: ${error.message || "Unknown error"}`]);
+                }
+            } finally {
+                if (!isCancelledRef.current) {
+                    processedCount++;
+                    if (isMounted.current) {
+                        setProgressState(prev => ({ ...prev, current: processedCount }));
+                    }
+                    // Recursive call
+                    await processNext();
+                }
+            }
+        };
+
+        // Initialize worker pool
+        const workers = [];
+        const initialPoolSize = Math.min(totalFiles, CONCURRENCY_LIMIT);
+
+        for (let i = 0; i < initialPoolSize; i++) {
+            workers.push(processNext());
         }
-        if (failCount > 0) {
-            showToast(`Failed: ${failCount} files`, "error");
+
+        await Promise.all(workers);
+
+        if (isMounted.current && !isCancelledRef.current) {
+            setIsUploading(false);
+            setProgressState({ current: 0, total: 0 });
+
+            if (successCount > 0) {
+                showToast(`Completed: ${successCount} added`, "success");
+            }
+            if (failCount > 0) {
+                showToast(`Failed: ${failCount} files`, "error");
+            }
         }
-    }
-    
-    // Reset input
-    e.target.value = '';
-  };
 
-  return (
-    <div className="w-full h-full bg-white flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 mb-8 flex justify-between items-start">
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h2>
-                <p className="text-sm text-gray-500 mt-1">Manage your application preferences and assets.</p>
-            </div>
-            {isUploading && (
-                <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                    <button onClick={isPaused ? handleResume : handlePause} className="px-3 py-1 text-xs font-bold bg-white border border-gray-200 rounded hover:bg-gray-50">
-                        {isPaused ? 'Resume' : 'Pause'}
-                    </button>
-                    <button onClick={handleCancel} className="px-3 py-1 text-xs font-bold bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100">
-                        Cancel
-                    </button>
+        // Reset input
+        e.target.value = '';
+    };
+
+    return (
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden">
+            <div className="flex-shrink-0 mb-8 flex justify-between items-start">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h2>
+                    <p className="text-sm text-gray-500 mt-1">Manage your application preferences and assets.</p>
                 </div>
-            )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
-            
-            {/* Library Management Section */}
-            <section className="mb-12">
-                <div className="flex justify-between items-end mb-6">
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900">Default Swipe File Library</h3>
-                        <p className="text-sm text-gray-500">
-                            These templates are available when "Default" is selected in your campaign.
-                        </p>
-                    </div>
-                    <span className="text-xs font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-600">
-                        {templates.length} Assets
-                    </span>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {/* Upload Card */}
-                    <label className={`relative rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-all cursor-pointer flex flex-col items-center justify-center aspect-square group ${isUploading ? 'opacity-100 cursor-default' : ''}`}>
-                         {isUploading ? (
-                             <div className="flex flex-col items-center w-full px-4 text-center">
-                                 {isPaused ? (
-                                     <div className="w-8 h-8 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full mb-2">
-                                         ⏸
-                                     </div>
-                                 ) : (
-                                     <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2 mx-auto"></div>
-                                 )}
-                                 <span className="text-[10px] text-gray-500 font-mono block mb-1">
-                                    {isPaused ? 'Paused' : 'Uploading...'}
-                                 </span>
-                                 <span className="text-[10px] text-gray-400 font-mono block">
-                                    {progressState.current} / {progressState.total}
-                                 </span>
-                                 <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
-                                     <div 
-                                        className={`h-1 rounded-full transition-all duration-300 ${isPaused ? 'bg-yellow-400' : 'bg-black'}`}
-                                        style={{ width: `${(progressState.current / Math.max(progressState.total, 1)) * 100}%` }}
-                                     ></div>
-                                 </div>
-                             </div>
-                         ) : (
-                            <>
-                                <span className="text-3xl text-gray-300 group-hover:text-black transition-colors mb-2">+</span>
-                                <span className="text-xs font-bold text-gray-400 group-hover:text-black">Bulk Upload</span>
-                            </>
-                         )}
-                         <input type="file" accept="image/*" multiple onChange={handleUpload} className="hidden" disabled={isUploading} />
-                    </label>
-
-                    {/* Existing Templates */}
-                    {templates.map(t => (
-                        <div key={t.id} className="relative rounded-2xl overflow-hidden border border-gray-100 bg-white group aspect-square">
-                            <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
-                                <p className="text-white text-xs font-bold truncate">{t.name}</p>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                    {t.tags.slice(0,2).map(tag => (
-                                        <span key={tag} className="text-[9px] bg-white/20 text-white px-1.5 rounded-sm">{tag}</span>
-                                    ))}
-                                </div>
-                            </div>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onRemoveTemplate(t.id); }}
-                                className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all shadow-sm z-10"
-                                title="Delete Template"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <div className="flex items-center space-x-3">
+                    {isUploading && (
+                        <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                            <button onClick={isPaused ? handleResume : handlePause} className="px-3 py-1 text-xs font-bold bg-white border border-gray-200 rounded hover:bg-gray-50">
+                                {isPaused ? 'Resume' : 'Pause'}
+                            </button>
+                            <button onClick={handleCancel} className="px-3 py-1 text-xs font-bold bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100">
+                                Cancel
                             </button>
                         </div>
-                    ))}
+                    )}
                 </div>
-            </section>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
+
+                {/* Library Management Section */}
+                <section className="mb-12">
+                    <div className="flex justify-between items-end mb-6">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900">Default Swipe File Library</h3>
+                            <p className="text-sm text-gray-500">
+                                These templates are available when "Default" is selected in your campaign.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onClearLibrary}
+                                className="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md border border-red-200 transition-colors"
+                            >
+                                Clear Library
+                            </button>
+                            <span className="text-xs font-bold bg-gray-100 px-3 py-1.5 rounded-full text-gray-600">
+                                {templates.length} Assets
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Error Logs */}
+                    {errorLogs.length > 0 && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="text-sm font-bold text-red-800">Upload Errors ({errorLogs.length})</h4>
+                                <button onClick={() => setErrorLogs([])} className="text-xs text-red-600 hover:text-red-800 underline">Dismiss</button>
+                            </div>
+                            <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                                {errorLogs.map((log, i) => (
+                                    <p key={i} className="text-xs text-red-600 font-mono mb-1 last:mb-0">{log}</p>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {/* Upload Card */}
+                        <label className={`relative rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-all cursor-pointer flex flex-col items-center justify-center aspect-square group ${isUploading ? 'opacity-100 cursor-default' : ''}`}>
+                            {isUploading ? (
+                                <div className="flex flex-col items-center w-full px-4 text-center">
+                                    {isPaused ? (
+                                        <div className="w-8 h-8 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full mb-2">
+                                            ⏸
+                                        </div>
+                                    ) : (
+                                        <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin mb-2 mx-auto"></div>
+                                    )}
+                                    <span className="text-[10px] text-gray-500 font-mono block mb-1">
+                                        {isPaused ? 'Paused' : 'Uploading...'}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 font-mono block">
+                                        {progressState.current} / {progressState.total}
+                                    </span>
+                                    <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+                                        <div
+                                            className={`h-1 rounded-full transition-all duration-300 ${isPaused ? 'bg-yellow-400' : 'bg-black'}`}
+                                            style={{ width: `${(progressState.current / Math.max(progressState.total, 1)) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <span className="text-3xl text-gray-300 group-hover:text-black transition-colors mb-2">+</span>
+                                    <span className="text-xs font-bold text-gray-400 group-hover:text-black">Bulk Upload</span>
+                                </>
+                            )}
+                            <input type="file" accept="image/*" multiple onChange={handleUpload} className="hidden" disabled={isUploading} />
+                        </label>
+
+                        {/* Existing Templates */}
+                        {templates.map(t => (
+                            <div key={t.id} className="relative rounded-2xl overflow-hidden border border-gray-100 bg-white group aspect-square">
+                                <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                                    <p className="text-white text-xs font-bold truncate">{t.name}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {t.tags.slice(0, 2).map(tag => (
+                                            <span key={tag} className="text-[9px] bg-white/20 text-white px-1.5 rounded-sm">{tag}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onRemoveTemplate(t.id); }}
+                                    className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all shadow-sm z-10"
+                                    title="Delete Template"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            </div>
         </div>
-    </div>
-  );
+    );
 };
 
 export default Settings;
