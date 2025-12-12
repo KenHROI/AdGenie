@@ -100,7 +100,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/images/library', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('ad_templates')
+      .from('image_library')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -120,13 +120,17 @@ app.get('/api/images/library', async (req, res) => {
 app.delete('/api/images/library', async (req, res) => {
   try {
     const { data: files, error: fetchError } = await supabase
-      .from('ad_templates')
-      .select('storage_path');
+      .from('image_library')
+      .select('image_url');
 
     if (fetchError) throw fetchError;
 
     if (files && files.length > 0) {
-      const paths = files.map(f => f.storage_path).filter(p => p);
+      // Extract filenames from image URLs for storage cleanup
+      const paths = files
+        .map(f => f.image_url)
+        .filter(url => url && url.includes(BUCKET_NAME))
+        .map(url => url.split('/').pop());
       if (paths.length > 0) {
         const { error: storageError } = await supabase.storage
           .from(BUCKET_NAME)
@@ -136,7 +140,7 @@ app.delete('/api/images/library', async (req, res) => {
     }
 
     const { error: deleteError } = await supabase
-      .from('ad_templates')
+      .from('image_library')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
@@ -186,13 +190,12 @@ app.post('/api/images/upload', uploadLimiter, upload.single('file'), async (req,
     const meta = req.body.metadata ? JSON.parse(req.body.metadata) : {};
 
     const { data: dbData, error: dbError } = await supabase
-      .from('ad_templates')
+      .from('image_library')
       .insert({
         name: meta.name || 'Uploaded Asset',
         description: meta.description || '',
         tags: meta.tags || ['uploaded'],
-        image_url: publicUrl,
-        storage_path: fileName
+        image_url: publicUrl
       })
       .select()
       .single();
@@ -218,8 +221,8 @@ app.delete('/api/images/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'Missing image ID' });
 
     const { data: record, error: fetchError } = await supabase
-      .from('ad_templates')
-      .select('storage_path')
+      .from('image_library')
+      .select('image_url')
       .eq('id', id)
       .single();
 
@@ -228,15 +231,17 @@ app.delete('/api/images/:id', async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
 
-    if (record.storage_path) {
+    // Extract filename from image URL for storage cleanup
+    if (record.image_url && record.image_url.includes(BUCKET_NAME)) {
+      const fileName = record.image_url.split('/').pop();
       const { error: storageError } = await supabase.storage
         .from(BUCKET_NAME)
-        .remove([record.storage_path]);
+        .remove([fileName]);
       if (storageError) console.warn('Storage deletion warning:', storageError);
     }
 
     const { error: deleteError } = await supabase
-      .from('ad_templates')
+      .from('image_library')
       .delete()
       .eq('id', id);
 
@@ -251,6 +256,35 @@ app.delete('/api/images/:id', async (req, res) => {
     logError('Delete error', err);
     res.status(500).json({ error: 'Delete failed', details: err.message });
   }
+});
+
+// Global Error Handler - catches multer errors and other unhandled errors
+// Must be defined before the SPA fallback to work properly
+app.use((err, req, res, next) => {
+  logError('Unhandled error', err);
+
+  // Handle multer-specific errors
+  if (err.name === 'MulterError') {
+    return res.status(400).json({
+      error: 'File upload error',
+      details: err.message,
+      code: err.code
+    });
+  }
+
+  // Handle file filter rejection
+  if (err.message && err.message.includes('Invalid file type')) {
+    return res.status(400).json({
+      error: 'Invalid file type',
+      details: err.message
+    });
+  }
+
+  // Handle other errors
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // SPA Fallback

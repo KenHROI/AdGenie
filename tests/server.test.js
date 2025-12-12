@@ -100,7 +100,7 @@ describe('Server API Endpoints', () => {
 
             expect(res.statusCode).toEqual(200);
             expect(res.body).toEqual(mockData);
-            expect(mockFrom).toHaveBeenCalledWith('ad_templates');
+            expect(mockFrom).toHaveBeenCalledWith('image_library');
             expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
         });
 
@@ -154,16 +154,17 @@ describe('Server API Endpoints', () => {
 
     describe('DELETE /api/images/:id', () => {
         it('should delete an image from storage and DB', async () => {
-            // Mock fetching storage path
-            // 1. select('storage_path').eq('id', id).single()
+            // Mock fetching image_url
+            // 1. select('image_url').eq('id', id).single()
 
             // eq is called twice. Once for select chain, once for delete chain.
             mockEq
                 .mockReturnValueOnce(queryBuilder) // For select().eq()
                 .mockResolvedValueOnce({ error: null }); // For delete().eq() -> ends here
 
+            // URL includes BUCKET_NAME so storage cleanup will be triggered
             mockSingle.mockResolvedValue({
-                data: { storage_path: 'path/on/storage.jpg' },
+                data: { image_url: 'https://example.com/storage/v1/object/public/ad-genie-assets/image.jpg' },
                 error: null
             });
 
@@ -177,10 +178,13 @@ describe('Server API Endpoints', () => {
 
     describe('DELETE /api/images/library', () => {
         it('should clear all images from storage and DB', async () => {
-            // 1. Fetch paths: select('storage_path')
+            // 1. Fetch image_urls: select('image_url')
 
-            // Allow fetch to return some files
-            const files = [{ storage_path: 'a.jpg' }, { storage_path: 'b.jpg' }];
+            // Allow fetch to return some files with URLs containing BUCKET_NAME
+            const files = [
+                { image_url: 'https://example.com/storage/v1/object/public/ad-genie-assets/a.jpg' },
+                { image_url: 'https://example.com/storage/v1/object/public/ad-genie-assets/b.jpg' }
+            ];
 
             // Configure the specific call to return data upon await
             mockSelect.mockImplementationOnce(() => ({
