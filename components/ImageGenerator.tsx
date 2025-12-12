@@ -22,7 +22,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     onBack,
 }) => {
     const { settings } = useSettings();
-    const hasKey = !!(settings.apiKeys.google || settings.apiKeys.openRouter); // Simple check for now
+    const hasKey = !!(settings.apiKeys.google || settings.apiKeys.kie); // Simple check for now
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [results, setResults] = useState<GeneratedImage[]>([]);

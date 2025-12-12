@@ -1,53 +1,16 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { BrandProfile, AdTemplate, GeminiModel, SettingsState } from "../types";
-import { AD_LIBRARY } from "../constants";
+import { AD_LIBRARY, KIE_IMAGE_MODELS } from "../constants";
 
-// OpenRouter Interface (Compatible with OpenAI)
-interface OpenRouterResponse {
-    choices: Array<{
-        message: { content: string };
-    }>;
-}
-
-interface OpenRouterModel {
-    id: string;
-    name: string;
-    description?: string;
-    context_length?: number;
-}
-
-interface OpenRouterModelsResponse {
-    data: OpenRouterModel[];
-}
-
-export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{ id: string, name: string }>> => {
-    try {
-        const response = await fetch("https://openrouter.ai/api/v1/models", {
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": window.location.origin,
-                "X-Title": "AdGenie"
-            }
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch models");
-
-        const json = await response.json() as OpenRouterModelsResponse;
-
-        return json.data.map(m => ({
-            id: m.id,
-            name: m.name || m.id
-        })).sort((a, b) => a.name.localeCompare(b.name));
-
-    } catch (e) {
-        console.error("Failed to fetch OpenRouter models", e);
-        return [];
-    }
+// Kie.ai Helper
+const resolveKieEndpoint = (modelId: string): string => {
+    const known = KIE_IMAGE_MODELS.find(m => m.id === modelId);
+    return known?.endpoint || '/api/v1/image/generate'; // Default fallback
 };
 
-const callOpenRouter = async (apiKey: string, model: string, prompt: string, image?: string) => {
+const callKieChat = async (apiKey: string, model: string, prompt: string, image?: string) => {
     const body: any = {
-        model: model || 'openai/gpt-4o', // Default if not specified
+        model: model || 'gpt-4o', // Default text model
         messages: [
             {
                 role: "user",
@@ -59,24 +22,70 @@ const callOpenRouter = async (apiKey: string, model: string, prompt: string, ima
         ]
     };
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Kie.ai Chat/Text Endpoint (Assumed OpenAI compatible)
+    const response = await fetch("https://api.kie.ai/v1/chat/completions", {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": window.location.origin, // OpenRouter Requirement
-            "X-Title": "AdGenie"
+            "Content-Type": "application/json"
         },
         body: JSON.stringify(body)
     });
 
     if (!response.ok) {
         const errorDetails = await response.text();
-        throw new Error(`OpenRouter Error: ${response.statusText} - ${errorDetails}`);
+        throw new Error(`Kie.ai Error: ${response.statusText} - ${errorDetails}`);
     }
 
-    const data = await response.json() as OpenRouterResponse;
+    const data = await response.json() as any;
     return data.choices[0]?.message?.content || "";
+};
+
+const callKieImageGen = async (apiKey: string, model: string, prompt: string, image?: string): Promise<string | null> => {
+    const endpointPath = resolveKieEndpoint(model);
+    const url = `https://api.kie.ai${endpointPath}`;
+
+    // Construct payload based on endpoint type (Simplified assumption: Unified Format or Specifics)
+    // Kie Docs imply specific endpoints, likely taking 'prompt', 'model', etc.
+    const body: any = {
+        model: model,
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        response_format: "b64_json" // Prefer base64
+    };
+
+    // Flux specific check?
+    if (model.includes('flux')) {
+        // Flux often takes different params, but let's try standard first.
+    }
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Kie.ai Image Gen Error (${model}): ${err}`);
+    }
+
+    const data = await response.json();
+
+    // Handle Response Variations
+    if (data.data && data.data[0] && data.data[0].b64_json) {
+        return `data:image/jpeg;base64,${data.data[0].b64_json}`;
+    }
+    if (data.data && data.data[0] && data.data[0].url) {
+        return data.data[0].url;
+    }
+
+    // Fallback?
+    return null;
 };
 
 // --- Service Functions receiving Settings ---
@@ -122,11 +131,11 @@ export const analyzeAdCopyForStyles = async (
             const result = await model.generateContent(prompt);
             jsonStr = result.response.text();
 
-        } else if (serviceConfig.provider === 'openRouter') {
-            const apiKey = settings.apiKeys.openRouter;
-            if (!apiKey) throw new Error("OpenRouter API Key missing");
+        } else if (serviceConfig.provider === 'kie') {
+            const apiKey = settings.apiKeys.kie;
+            if (!apiKey) throw new Error("Kie.ai API Key missing");
 
-            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt);
+            jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt);
         }
 
         // Clean Markdown if present
@@ -186,11 +195,11 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
             ]);
             jsonStr = result.response.text();
 
-        } else if (serviceConfig.provider === 'openRouter') {
-            const apiKey = settings.apiKeys.openRouter;
-            if (!apiKey) throw new Error("OpenRouter API Key missing");
+        } else if (serviceConfig.provider === 'kie') {
+            const apiKey = settings.apiKeys.kie;
+            if (!apiKey) throw new Error("Kie.ai API Key missing");
 
-            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt, fullDataUrl);
+            jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt, fullDataUrl);
         }
 
         jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -257,31 +266,18 @@ export const generateAdVariation = async (
             }
             return null;
 
-        } else if (serviceConfig.provider === 'openRouter') {
-            const apiKey = settings.apiKeys.openRouter;
-            if (!apiKey) throw new Error("OpenRouter API Key missing");
+        } else if (serviceConfig.provider === 'kie') {
+            const apiKey = settings.apiKeys.kie;
+            if (!apiKey) throw new Error("Kie.ai API Key missing");
 
-            // Use the selected model from settings, or fall back to DALL-E 3
-            const modelToUse = serviceConfig.modelId || 'openai/dall-e-3';
+            const modelId = serviceConfig.modelId || 'seedream-3.0-text-to-image';
 
-            // NOTE: Standard Chat Completions vs Image Generation
-            // OpenRouter exposes many image models via the standard chat API with image outputs, OR via /v1/images/generations
-            // However, consistent Image-to-Image via OpenRouter varies heavily by model.
-            // For this implementation, we will attempt to use the Chat API and hope it returns an image URL or markdown image.
+            // Call Kie.ai Generation
+            // Note: If using Custom endpoint, modelId might be the custom string.
+            // Our helper resolveKieEndpoint handles falling back to default endpoint if not in registry.
 
-            const result = await callOpenRouter(apiKey, modelToUse, prompt);
-
-            // Check for markdown image format ![...](url)
-            const match = result.match(/\!\[.*?\]\((.*?)\)/);
-            if (match && match[1]) {
-                return match[1]; // URL
-            }
-
-            // If it's just a raw URL
-            if (result.startsWith('http')) return result;
-
-            console.warn("OpenRouter response did not contain a clear image URL:", result);
-            return null;
+            const result = await callKieImageGen(apiKey, modelId, prompt);
+            return result;
         }
 
         return null;
