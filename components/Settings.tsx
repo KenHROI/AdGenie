@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
 import { useNotification } from '../context/NotificationContext';
+import { useSettings } from '../context/SettingsContext';
 import { describeImageStyle } from '../services/geminiService';
 import { uploadTemplate } from '../services/storageService';
 
@@ -62,6 +63,11 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
     const [isPaused, setIsPaused] = useState(false);
     const [progressState, setProgressState] = useState({ current: 0, total: 0 });
     const [errorLogs, setErrorLogs] = useState<string[]>([]);
+
+    // API Key State (Masking)
+    const { settings, updateApiKey, updateService } = useSettings();
+    const [showGoogleKey, setShowGoogleKey] = useState(false);
+    const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
 
     const { showToast } = useNotification();
 
@@ -226,6 +232,109 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
+
+                {/* API Configuration Section */}
+                <section className="mb-12 border-b border-gray-100 pb-12">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">API Configuration</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        {/* Credentials Vault */}
+                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <span className="text-lg">🔐</span> Credentials Vault
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Google API Key (Gemini)</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showGoogleKey ? "text" : "password"}
+                                            value={settings.apiKeys.google}
+                                            onChange={(e) => updateApiKey('google', e.target.value)}
+                                            placeholder="AIzaSy..."
+                                            className="w-full pl-3 pr-10 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowGoogleKey(!showGoogleKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                                        >
+                                            {showGoogleKey ? 'Hide' : 'Show'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">OpenRouter API Key</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showOpenRouterKey ? "text" : "password"}
+                                            value={settings.apiKeys.openRouter}
+                                            onChange={(e) => updateApiKey('openRouter', e.target.value)}
+                                            placeholder="sk-or-..."
+                                            className="w-full pl-3 pr-10 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowOpenRouterKey(!showOpenRouterKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                                        >
+                                            {showOpenRouterKey ? 'Hide' : 'Show'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Service Routing */}
+                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <span className="text-lg">⚡️</span> Service Routing
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-700">Text Analysis</p>
+                                        <p className="text-[10px] text-gray-400">Ad copy & brand voice analysis</p>
+                                    </div>
+                                    <select
+                                        value={settings.services.analysis.provider}
+                                        onChange={(e) => updateService('analysis', { provider: e.target.value as any })}
+                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                    >
+                                        <option value="google">Google Gemini</option>
+                                        <option value="openRouter">OpenRouter</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-700">Vision Analysis</p>
+                                        <p className="text-[10px] text-gray-400">Analyzing uploaded templates</p>
+                                    </div>
+                                    <select
+                                        value={settings.services.vision.provider}
+                                        onChange={(e) => updateService('vision', { provider: e.target.value as any })}
+                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                    >
+                                        <option value="google">Google Gemini</option>
+                                        <option value="openRouter">OpenRouter (Vision)</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-700">Image Generation</p>
+                                        <p className="text-[10px] text-gray-400">Creating ad variations</p>
+                                    </div>
+                                    <select
+                                        value={settings.services.imageGeneration.provider}
+                                        onChange={(e) => updateService('imageGeneration', { provider: e.target.value as any })}
+                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                    >
+                                        <option value="google">Google Imagen</option>
+                                        <option value="openRouter">OpenRouter (DALL-E/Flux)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Library Management Section */}
                 <section className="mb-12">

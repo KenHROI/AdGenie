@@ -6,10 +6,11 @@ import SuggestionSelector from './components/SuggestionSelector';
 import ImageGenerator from './components/ImageGenerator';
 import Settings from './components/Settings';
 import { AppStep, BrandProfile, AdTemplate } from './types';
-import { analyzeAdCopyForStyles } from './services/geminiService';
+import { analyzeAdCopyForStyles } from './services/aiService';
 import { listImagesInFolder } from './services/driveService';
 import { getLibrary, deleteTemplate, clearLibrary } from './services/storageService';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 import ToastContainer from './components/Toast';
 import { AD_LIBRARY } from './constants';
 
@@ -38,6 +39,7 @@ const MainApp: React.FC = () => {
     const [availableTemplates, setAvailableTemplates] = useState<AdTemplate[]>(AD_LIBRARY);
 
     const { showToast } = useNotification();
+    const { settings } = useSettings();
 
     // Load Library on Mount
     useEffect(() => {
@@ -85,7 +87,7 @@ const MainApp: React.FC = () => {
             setAvailableTemplates(templatesToAnalyze);
 
             // 2. Analyze
-            const ids = await analyzeAdCopyForStyles(data.adCopy, templatesToAnalyze);
+            const ids = await analyzeAdCopyForStyles(settings, data.adCopy, templatesToAnalyze);
             setRecommendedIds(ids);
             setCurrentStep(AppStep.SELECTION);
         } catch (e: any) {
@@ -221,9 +223,11 @@ const MainApp: React.FC = () => {
 };
 
 const App: React.FC = () => (
-    <NotificationProvider>
-        <MainApp />
-    </NotificationProvider>
+    <SettingsProvider>
+        <NotificationProvider>
+            <MainApp />
+        </NotificationProvider>
+    </SettingsProvider>
 );
 
 export default App;

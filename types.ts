@@ -46,3 +46,24 @@ export interface Notification {
   message: string;
   type: NotificationType;
 }
+
+export type AIProvider = 'google' | 'openRouter';
+
+export interface ServiceConfig {
+  provider: AIProvider;
+  modelId?: string;
+  isEnabled: boolean; // Allow disabling specific features
+}
+
+export interface SettingsState {
+  apiKeys: {
+    google: string;
+    openRouter: string;
+  };
+  services: {
+    analysis: ServiceConfig;      // Text/Ad Copy analysis
+    imageGeneration: ServiceConfig;
+    vision: ServiceConfig;        // Image description
+    video: ServiceConfig;         // Video analysis
+  };
+}

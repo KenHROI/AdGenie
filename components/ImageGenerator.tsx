@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { CONFIG } from '../config';
-import { generateAdVariation } from '../services/geminiService';
+import { generateAdVariation } from '../services/aiService';
+import { useSettings } from '../context/SettingsContext';
 import { useNotification } from '../context/NotificationContext';
 import JSZip from 'jszip';
 
@@ -20,7 +21,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     variationsPerSeed,
     onBack,
 }) => {
-    const [hasKey, setHasKey] = useState(false);
+    const { settings } = useSettings();
+    const hasKey = !!(settings.apiKeys.google || settings.apiKeys.openRouter); // Simple check for now
+
     const [isGenerating, setIsGenerating] = useState(false);
     const [results, setResults] = useState<GeneratedImage[]>([]);
     const [progress, setProgress] = useState(0);
@@ -39,35 +42,14 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         }
     }, [results]);
 
+    // Simplified check - rely on settings context
     const checkKey = async () => {
-        const aistudio = (window as any).aistudio;
-        if (aistudio && aistudio.hasSelectedApiKey) {
-            const has = await aistudio.hasSelectedApiKey();
-            setHasKey(has);
-            if (has && !isGenerating && results.length === 0) {
-                startGeneration();
-            }
-        } else {
-            if (CONFIG.GEMINI_API_KEY) {
-                setHasKey(true);
-                if (!isGenerating && results.length === 0) startGeneration();
-            }
+        if (hasKey && !isGenerating && results.length === 0) {
+            startGeneration();
         }
     };
 
-    const handleKeySelection = async () => {
-        const aistudio = (window as any).aistudio;
-        if (aistudio && aistudio.openSelectKey) {
-            try {
-                await aistudio.openSelectKey();
-                setHasKey(true);
-                startGeneration();
-            } catch (e) {
-                console.error(e);
-                showToast("Failed to select API key", 'error');
-            }
-        }
-    };
+
 
     const startGeneration = async () => {
         setIsGenerating(true);
@@ -99,7 +81,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                         }
                     }
 
-                    const generatedBase64 = await generateAdVariation(base64, brandData, sourceName);
+                    const generatedBase64 = await generateAdVariation(settings, base64, brandData, sourceName);
 
                     if (generatedBase64) {
                         setResults(prev => [...prev, {
@@ -114,7 +96,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                     console.error(`Failed to generate`, err);
                     if (err.message && err.message.includes("Requested entity was not found")) {
                         showToast("API Key expired or invalid. Please reconnect.", 'error');
-                        setHasKey(false);
+                        showToast("API Key expired or invalid. Please check settings.", 'error');
                         setIsGenerating(false);
                         return;
                     } else if (err.message?.includes("Quota")) {
@@ -185,10 +167,11 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white">
                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-sm">🔑</div>
-                <h2 className="text-xl font-bold mb-2 text-gray-900">Unlock Pro Features</h2>
-                <p className="text-gray-500 max-w-sm mb-8">Connect your API key to access the Nano Banana Pro model.</p>
-                <button onClick={handleKeySelection} className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg">Connect API Key</button>
-                <button onClick={onBack} className="mt-6 text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                <h2 className="text-xl font-bold mb-2 text-gray-900">Missing Credentials</h2>
+                <p className="text-gray-500 max-w-sm mb-8">Please configure your API keys in the Settings menu to continue.</p>
+                <div className="flex gap-4">
+                    <button onClick={onBack} className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg">Back to Setup</button>
+                </div>
             </div>
         );
     }
