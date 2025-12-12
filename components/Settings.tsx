@@ -141,7 +141,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
         let failCount = 0;
 
         // Concurrency Limit (max parallel requests)
-        const CONCURRENCY_LIMIT = 5; // Increased for better throughput
+        const CONCURRENCY_LIMIT = 2; // Reduced to prevent AI API rate limiting
         let index = 0;
 
         const processNext = async (): Promise<void> => {
@@ -166,7 +166,6 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
                 // 1. Optimize (Client-side)
                 const optimizedFile = await optimizeImage(file);
-                const reader = new FileReader();
 
                 // Get base64 for AI analysis
                 const base64: string = await new Promise(resolve => {
@@ -175,8 +174,23 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     r.readAsDataURL(optimizedFile);
                 });
 
-                // 2. Analyze
-                const aiData = await describeImageStyle(settings, base64);
+                // 2. Analyze (non-fatal if AI fails)
+                let aiData: { name?: string; description?: string; tags?: string[] } = {
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    description: "User uploaded template",
+                    tags: ["custom"]
+                };
+                try {
+                    const result = await describeImageStyle(settings, base64);
+                    if (result && result.name) {
+                        aiData = result;
+                    }
+                } catch (aiError) {
+                    console.warn(`AI analysis failed for ${file.name}, using defaults`);
+                }
+
+                // Small delay to prevent rate limiting
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 // 3. Upload via Service (API or Local Fallback)
                 const newTemplate = await uploadTemplate(optimizedFile, {

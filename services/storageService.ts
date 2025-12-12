@@ -101,6 +101,16 @@ const mockStorage = {
 /**
  * Real API Implementation
  */
+
+// Transform snake_case API response to camelCase for frontend
+const transformTemplate = (apiData: any): AdTemplate => ({
+  id: apiData.id,
+  name: apiData.name,
+  description: apiData.description || '',
+  imageUrl: apiData.image_url || apiData.imageUrl, // Handle both formats
+  tags: apiData.tags || []
+});
+
 const apiStorage = {
   getLibrary: async (): Promise<AdTemplate[]> => {
     return retryWithBackoff(async () => {
@@ -108,7 +118,8 @@ const apiStorage = {
       if (!response.ok) {
         throw new Error(`Failed to fetch library: ${response.status} ${response.statusText}`);
       }
-      return await response.json();
+      const data = await response.json();
+      return data.map(transformTemplate);
     });
   },
 
@@ -131,7 +142,8 @@ const apiStorage = {
       const errorText = await response.text().catch(() => 'Unknown error');
       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return transformTemplate(data);
   },
 
   deleteImage: async (id: string): Promise<void> => {
