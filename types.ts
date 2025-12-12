@@ -35,8 +35,9 @@ export enum AppStep {
 }
 
 export enum GeminiModel {
+  // Retain for backward compatibility or refactor to generic "AIModel"
   ANALYSIS = 'gemini-2.5-flash',
-  IMAGE_GEN = 'gemini-3-pro-image-preview',
+  IMAGE_GEN = 'gemini-3-pro-image-preview', // User explicitly requested this
 }
 
 export type NotificationType = 'success' | 'error' | 'info';
@@ -66,4 +67,5 @@ export interface SettingsState {
     vision: ServiceConfig;        // Image description
     video: ServiceConfig;         // Video analysis
   };
+  openRouterModels: Array<{ id: string; name: string }>; // Cache available models
 }

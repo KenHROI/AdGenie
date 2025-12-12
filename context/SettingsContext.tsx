@@ -14,7 +14,8 @@ const DEFAULT_SETTINGS: SettingsState = {
         vision: { provider: 'google', isEnabled: true },
         imageGeneration: { provider: 'google', isEnabled: true },
         video: { provider: 'google', isEnabled: true },
-    }
+    },
+    openRouterModels: [],
 };
 
 interface SettingsContextType {

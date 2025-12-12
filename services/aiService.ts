@@ -9,6 +9,42 @@ interface OpenRouterResponse {
     }>;
 }
 
+interface OpenRouterModel {
+    id: string;
+    name: string;
+    description?: string;
+    context_length?: number;
+}
+
+interface OpenRouterModelsResponse {
+    data: OpenRouterModel[];
+}
+
+export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{ id: string, name: string }>> => {
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/models", {
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": window.location.origin,
+                "X-Title": "AdGenie"
+            }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch models");
+
+        const json = await response.json() as OpenRouterModelsResponse;
+
+        return json.data.map(m => ({
+            id: m.id,
+            name: m.name || m.id
+        })).sort((a, b) => a.name.localeCompare(b.name));
+
+    } catch (e) {
+        console.error("Failed to fetch OpenRouter models", e);
+        return [];
+    }
+};
+
 const callOpenRouter = async (apiKey: string, model: string, prompt: string, image?: string) => {
     const body: any = {
         model: model || 'openai/gpt-4o', // Default if not specified
@@ -90,7 +126,6 @@ export const analyzeAdCopyForStyles = async (
             const apiKey = settings.apiKeys.openRouter;
             if (!apiKey) throw new Error("OpenRouter API Key missing");
 
-            // OpenRouter doesn't strictly enforce JSON mode for all models, so we prompt carefully
             jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt);
         }
 
@@ -195,7 +230,10 @@ export const generateAdVariation = async (
             if (!apiKey) throw new Error("Google API Key missing");
 
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: GeminiModel.IMAGE_GEN });
+            const model = genAI.getGenerativeModel({
+                // Explicitly use the model requested by USER: gemini-3-pro-image-preview
+                model: GeminiModel.IMAGE_GEN
+            });
 
             // Clean base64 for Google
             let cleanBase64 = seedImageBase64;
@@ -209,9 +247,6 @@ export const generateAdVariation = async (
             ]);
 
             const response = await result.response;
-            // Check for base64 response (standard for Gemini Image Gen API via Vertex/Studio)
-            // Note: The public Gemini API for Imagen might differ slightly in response structure or return links.
-            // Assuming current implementation returns inlineData based on previous file.
 
             if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
                 for (const part of response.candidates[0].content.parts) {
@@ -226,14 +261,27 @@ export const generateAdVariation = async (
             const apiKey = settings.apiKeys.openRouter;
             if (!apiKey) throw new Error("OpenRouter API Key missing");
 
-            // OpenRouter Image Gen (e.g. Flux, DALL-E 3) usually returns a URL.
-            // Implementing text-to-image is standard, but image-to-image varies by model.
-            // For simplicity, we'll try a text-to-image call with detailed description of the reference.
+            // Use the selected model from settings, or fall back to DALL-E 3
+            const modelToUse = serviceConfig.modelId || 'openai/dall-e-3';
 
-            // This is a placeholder for OpenRouter Image Gen as it requires a different endpoint usually (/v1/images/generations)
-            // or specifically supported models on chat/completions.
-            // Use generic error for now if they pick OpenRouter for Image Gen
-            throw new Error("OpenRouter Image Generation is not fully implemented yet.");
+            // NOTE: Standard Chat Completions vs Image Generation
+            // OpenRouter exposes many image models via the standard chat API with image outputs, OR via /v1/images/generations
+            // However, consistent Image-to-Image via OpenRouter varies heavily by model.
+            // For this implementation, we will attempt to use the Chat API and hope it returns an image URL or markdown image.
+
+            const result = await callOpenRouter(apiKey, modelToUse, prompt);
+
+            // Check for markdown image format ![...](url)
+            const match = result.match(/\!\[.*?\]\((.*?)\)/);
+            if (match && match[1]) {
+                return match[1]; // URL
+            }
+
+            // If it's just a raw URL
+            if (result.startsWith('http')) return result;
+
+            console.warn("OpenRouter response did not contain a clear image URL:", result);
+            return null;
         }
 
         return null;

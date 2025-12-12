@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
-import { describeImageStyle } from '../services/geminiService';
+import { describeImageStyle, fetchOpenRouterModels } from '../services/aiService';
 import { uploadTemplate } from '../services/storageService';
 
 interface SettingsProps {
@@ -65,11 +65,46 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
     const [errorLogs, setErrorLogs] = useState<string[]>([]);
 
     // API Key State (Masking)
-    const { settings, updateApiKey, updateService } = useSettings();
+    const { settings, updateApiKey, updateService, updateSettings } = useSettings();
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
 
     const { showToast } = useNotification();
+
+    // Fetch models when OpenRouter key changes (if needed, but manual refresh is safer to avoid loops/rate limits)
+    React.useEffect(() => {
+        // Optional: Auto-fetch on mount if key exists and no models?
+        const autoFetch = async () => {
+            if (settings.apiKeys.openRouter && (!settings.openRouterModels || settings.openRouterModels.length === 0)) {
+                // Trigger fetch quietly? Or just wait for user.
+                // Let's waiting for user action to keep it simple, or checking reference implementation.
+                // We will skip auto-fetch to avoid surprising side effects on mount, but user can click refresh.
+            }
+        };
+        autoFetch();
+    }, []);
+
+    const handleRefreshModels = async () => {
+        if (!settings.apiKeys.openRouter) {
+            showToast("Enter OpenRouter Key first", "error");
+            return;
+        }
+        setIsLoadingModels(true);
+        try {
+            const models = await fetchOpenRouterModels(settings.apiKeys.openRouter);
+            if (models.length > 0) {
+                updateSettings({ openRouterModels: models });
+                showToast(`Fetched ${models.length} models`, "success");
+            } else {
+                showToast("No models found or key invalid", "error");
+            }
+        } catch (e) {
+            showToast("Failed to fetch models", "error");
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
 
     // Refs for control
     const isMounted = useRef(true);
@@ -152,7 +187,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 });
 
                 // 2. Analyze
-                const aiData = await describeImageStyle(base64);
+                const aiData = await describeImageStyle(settings, base64);
 
                 // 3. Upload via Service (API or Local Fallback)
                 const newTemplate = await uploadTemplate(optimizedFile, {
@@ -233,9 +268,18 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
 
-                {/* API Configuration Section */}
                 <section className="mb-12 border-b border-gray-100 pb-12">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">API Configuration</h3>
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-gray-900">API Configuration</h3>
+                        {settings.apiKeys.openRouter && (
+                            <button
+                                onClick={handleRefreshModels}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            >
+                                {isLoadingModels ? 'Refreshing...' : 'Refresh OpenRouter Models'}
+                            </button>
+                        )}
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                         {/* Credentials Vault */}
@@ -263,7 +307,15 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">OpenRouter API Key</label>
+                                    <div className="flex justify-between">
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1">OpenRouter API Key</label>
+                                        <button
+                                            onClick={handleRefreshModels}
+                                            className="text-[10px] text-gray-400 hover:text-indigo-600"
+                                        >
+                                            {isLoadingModels ? '...' : 'Fetch Models'}
+                                        </button>
+                                    </div>
                                     <div className="relative">
                                         <input
                                             type={showOpenRouterKey ? "text" : "password"}
@@ -279,6 +331,9 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                             {showOpenRouterKey ? 'Hide' : 'Show'}
                                         </button>
                                     </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">
+                                        {settings.openRouterModels?.length > 0 ? `${settings.openRouterModels.length} models available` : 'Enter key to fetch models'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -289,47 +344,94 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                 <span className="text-lg">⚡️</span> Service Routing
                             </h4>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Text Analysis</p>
-                                        <p className="text-[10px] text-gray-400">Ad copy & brand voice analysis</p>
+                                {/* Text Analysis */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">Text Analysis</p>
+                                            <p className="text-[10px] text-gray-400">Ad copy & brand voice</p>
+                                        </div>
+                                        <select
+                                            value={settings.services.analysis.provider}
+                                            onChange={(e) => updateService('analysis', { provider: e.target.value as any })}
+                                            className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                        >
+                                            <option value="google">Google Gemini</option>
+                                            <option value="openRouter">OpenRouter</option>
+                                        </select>
                                     </div>
-                                    <select
-                                        value={settings.services.analysis.provider}
-                                        onChange={(e) => updateService('analysis', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google Gemini</option>
-                                        <option value="openRouter">OpenRouter</option>
-                                    </select>
+                                    {settings.services.analysis.provider === 'openRouter' && (
+                                        <select
+                                            value={settings.services.analysis.modelId || ''}
+                                            onChange={(e) => updateService('analysis', { modelId: e.target.value })}
+                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                        >
+                                            <option value="">Select a model...</option>
+                                            {settings.openRouterModels?.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Vision Analysis</p>
-                                        <p className="text-[10px] text-gray-400">Analyzing uploaded templates</p>
+
+                                {/* Vision */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">Vision Analysis</p>
+                                            <p className="text-[10px] text-gray-400">Template analysis</p>
+                                        </div>
+                                        <select
+                                            value={settings.services.vision.provider}
+                                            onChange={(e) => updateService('vision', { provider: e.target.value as any })}
+                                            className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                        >
+                                            <option value="google">Google Gemini</option>
+                                            <option value="openRouter">OpenRouter</option>
+                                        </select>
                                     </div>
-                                    <select
-                                        value={settings.services.vision.provider}
-                                        onChange={(e) => updateService('vision', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google Gemini</option>
-                                        <option value="openRouter">OpenRouter (Vision)</option>
-                                    </select>
+                                    {settings.services.vision.provider === 'openRouter' && (
+                                        <select
+                                            value={settings.services.vision.modelId || ''}
+                                            onChange={(e) => updateService('vision', { modelId: e.target.value })}
+                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                        >
+                                            <option value="">Select a model (Vision cap)...</option>
+                                            {settings.openRouterModels?.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Image Generation</p>
-                                        <p className="text-[10px] text-gray-400">Creating ad variations</p>
+
+                                {/* Image Gen */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">Image Generation</p>
+                                            <p className="text-[10px] text-gray-400">Creating variations</p>
+                                        </div>
+                                        <select
+                                            value={settings.services.imageGeneration.provider}
+                                            onChange={(e) => updateService('imageGeneration', { provider: e.target.value as any })}
+                                            className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
+                                        >
+                                            <option value="google">Google Imagen</option>
+                                            <option value="openRouter">OpenRouter</option>
+                                        </select>
                                     </div>
-                                    <select
-                                        value={settings.services.imageGeneration.provider}
-                                        onChange={(e) => updateService('imageGeneration', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google Imagen</option>
-                                        <option value="openRouter">OpenRouter (DALL-E/Flux)</option>
-                                    </select>
+                                    {settings.services.imageGeneration.provider === 'openRouter' && (
+                                        <select
+                                            value={settings.services.imageGeneration.modelId || ''}
+                                            onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
+                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                        >
+                                            <option value="">Select a model...</option>
+                                            {settings.openRouterModels?.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                             </div>
                         </div>
