@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: SettingsState = {
     apiKeys: {
         google: '',
         kie: '',
+        openRouter: '',
     },
     services: {
         analysis: { provider: 'google', isEnabled: true },

@@ -48,11 +48,11 @@ export interface Notification {
   type: NotificationType;
 }
 
-export type AIProvider = 'google' | 'kie';
+export type AIProvider = 'google' | 'kie' | 'openRouter';
 
 export interface ServiceConfig {
   provider: AIProvider;
-  modelId?: string; // For Kie.ai specific models
+  modelId?: string; // For Kie.ai/OpenRouter specific models
   endpoint?: string; // For Custom Kie.ai models
   isEnabled: boolean;
 }
@@ -61,6 +61,7 @@ export interface SettingsState {
   apiKeys: {
     google: string;
     kie: string;
+    openRouter: string;
   };
   services: {
     analysis: ServiceConfig;      // Text/Ad Copy analysis

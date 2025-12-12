@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
-import { describeImageStyle } from '../services/aiService';
+import { describeImageStyle, fetchOpenRouterModels } from '../services/aiService';
 import { uploadTemplate } from '../services/storageService';
 import { KIE_IMAGE_MODELS, GOOGLE_IMAGE_MODELS } from '../constants';
 
@@ -69,8 +69,31 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
     const { settings, updateApiKey, updateService, updateSettings } = useSettings();
     const [showGoogleKey, setShowGoogleKey] = useState(false);
     const [showKieKey, setShowKieKey] = useState(false);
+    const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
 
     const { showToast } = useNotification();
+
+    const handleRefreshModels = async () => {
+        if (!settings.apiKeys.openRouter) {
+            showToast("Enter OpenRouter Key first", "error");
+            return;
+        }
+        setIsLoadingModels(true);
+        try {
+            const models = await fetchOpenRouterModels(settings.apiKeys.openRouter);
+            if (models.length > 0) {
+                updateSettings({ openRouterModels: models });
+                showToast(`Fetched ${models.length} models`, "success");
+            } else {
+                showToast("No models found or key invalid", "error");
+            }
+        } catch (e) {
+            showToast("Failed to fetch models", "error");
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
 
     // Refs for control
     const isMounted = useRef(true);
@@ -237,6 +260,14 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 <section className="mb-12 border-b border-gray-100 pb-12">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-gray-900">API Configuration</h3>
+                        {settings.apiKeys.openRouter && (
+                            <button
+                                onClick={handleRefreshModels}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            >
+                                {isLoadingModels ? 'Refreshing...' : 'Refresh OpenRouter Models'}
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -282,6 +313,24 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                         </button>
                                     </div>
                                 </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">OpenRouter API Key</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showOpenRouterKey ? "text" : "password"}
+                                            value={settings.apiKeys.openRouter}
+                                            onChange={(e) => updateApiKey('openRouter', e.target.value)}
+                                            placeholder="sk-or-..."
+                                            className="w-full pl-3 pr-10 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowOpenRouterKey(!showOpenRouterKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                                        >
+                                            {showOpenRouterKey ? 'Hide' : 'Show'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -305,8 +354,21 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                         className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
                                     >
                                         <option value="google">Google Gemini</option>
+                                        <option value="openRouter">OpenRouter</option>
                                     </select>
                                 </div>
+                                {settings.services.analysis.provider === 'openRouter' && (
+                                    <select
+                                        value={settings.services.analysis.modelId || ''}
+                                        onChange={(e) => updateService('analysis', { modelId: e.target.value })}
+                                        className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                    >
+                                        <option value="">Select a model...</option>
+                                        {settings.openRouterModels?.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             {/* Vision */}
@@ -322,8 +384,21 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                         className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
                                     >
                                         <option value="google">Google Gemini</option>
+                                        <option value="openRouter">OpenRouter</option>
                                     </select>
                                 </div>
+                                {settings.services.vision.provider === 'openRouter' && (
+                                    <select
+                                        value={settings.services.vision.modelId || ''}
+                                        onChange={(e) => updateService('vision', { modelId: e.target.value })}
+                                        className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                    >
+                                        <option value="">Select a model (Vision cap)...</option>
+                                        {settings.openRouterModels?.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             {/* Image Gen */}
@@ -340,6 +415,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                     >
                                         <option value="google">Google (Gemini)</option>
                                         <option value="kie">Kie.ai (Multi-Model)</option>
+                                        <option value="openRouter">OpenRouter</option>
                                     </select>
                                 </div>
 
@@ -352,32 +428,45 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                         )}
                                     </div>
 
-                                    <select
-                                        value={settings.services.imageGeneration.modelId || ''}
-                                        onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
-                                        className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-2 focus:outline-none focus:border-black cursor-pointer"
-                                    >
-                                        {settings.services.imageGeneration.provider === 'google' ? (
-                                            GOOGLE_IMAGE_MODELS.map(m => (
+                                    {settings.services.imageGeneration.provider === 'openRouter' ? (
+                                        <select
+                                            value={settings.services.imageGeneration.modelId || ''}
+                                            onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
+                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-2 focus:outline-none focus:border-black cursor-pointer"
+                                        >
+                                            <option value="">Select a model...</option>
+                                            {settings.openRouterModels?.map(m => (
                                                 <option key={m.id} value={m.id}>{m.name}</option>
-                                            ))
-                                        ) : (
-                                            <>
-                                                <option value="" disabled>Select a Model...</option>
-                                                <optgroup label="Popular Models">
-                                                    {KIE_IMAGE_MODELS.slice(0, 5).map(m => (
-                                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                                    ))}
-                                                </optgroup>
-                                                <optgroup label="All Models">
-                                                    {KIE_IMAGE_MODELS.slice(5).map(m => (
-                                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                                    ))}
-                                                </optgroup>
-                                                <option value="custom">Custom ID...</option>
-                                            </>
-                                        )}
-                                    </select>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <select
+                                            value={settings.services.imageGeneration.modelId || ''}
+                                            onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
+                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-2 focus:outline-none focus:border-black cursor-pointer"
+                                        >
+                                            {settings.services.imageGeneration.provider === 'google' ? (
+                                                GOOGLE_IMAGE_MODELS.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                ))
+                                            ) : (
+                                                <>
+                                                    <option value="" disabled>Select a Model...</option>
+                                                    <optgroup label="Popular Models">
+                                                        {KIE_IMAGE_MODELS.slice(0, 5).map(m => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <optgroup label="All Models">
+                                                        {KIE_IMAGE_MODELS.slice(5).map(m => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <option value="custom">Custom ID...</option>
+                                                </>
+                                            )}
+                                        </select>
+                                    )}
 
                                     {settings.services.imageGeneration.modelId === 'custom' && (
                                         <div className="mt-2 space-y-2 animate-fadeIn">

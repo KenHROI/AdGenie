@@ -8,6 +8,83 @@ const resolveKieEndpoint = (modelId: string): string => {
     return known?.endpoint || '/api/v1/image/generate'; // Default fallback
 };
 
+// OpenRouter Interfaces
+interface OpenRouterResponse {
+    choices: Array<{
+        message: { content: string };
+    }>;
+}
+
+interface OpenRouterModel {
+    id: string;
+    name: string;
+    description?: string;
+    context_length?: number;
+}
+
+interface OpenRouterModelsResponse {
+    data: OpenRouterModel[];
+}
+
+export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{ id: string, name: string }>> => {
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/models", {
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": window.location.origin,
+                "X-Title": "AdGenie"
+            }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch models");
+
+        const json = await response.json() as OpenRouterModelsResponse;
+
+        return json.data.map(m => ({
+            id: m.id,
+            name: m.name || m.id
+        })).sort((a, b) => a.name.localeCompare(b.name));
+
+    } catch (e) {
+        console.error("Failed to fetch OpenRouter models", e);
+        return [];
+    }
+};
+
+const callOpenRouter = async (apiKey: string, model: string, prompt: string, image?: string) => {
+    const body: any = {
+        model: model || 'openai/gpt-4o',
+        messages: [
+            {
+                role: "user",
+                content: [
+                    { type: "text", text: prompt },
+                    ...(image ? [{ type: "image_url", image_url: { url: image } }] : [])
+                ]
+            }
+        ]
+    };
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.origin, // OpenRouter Requirement
+            "X-Title": "AdGenie"
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`OpenRouter Error: ${response.statusText} - ${errorDetails}`);
+    }
+
+    const data = await response.json() as OpenRouterResponse;
+    return data.choices[0]?.message?.content || "";
+};
+
 const callKieChat = async (apiKey: string, model: string, prompt: string, image?: string) => {
     const body: any = {
         model: model || 'gpt-4o', // Default text model
@@ -136,6 +213,11 @@ export const analyzeAdCopyForStyles = async (
             if (!apiKey) throw new Error("Kie.ai API Key missing");
 
             jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt);
+        } else if (serviceConfig.provider === 'openRouter') {
+            const apiKey = settings.apiKeys.openRouter;
+            if (!apiKey) throw new Error("OpenRouter API Key missing");
+
+            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt);
         }
 
         // Clean Markdown if present
@@ -200,6 +282,11 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
             if (!apiKey) throw new Error("Kie.ai API Key missing");
 
             jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt, fullDataUrl);
+        } else if (serviceConfig.provider === 'openRouter') {
+            const apiKey = settings.apiKeys.openRouter;
+            if (!apiKey) throw new Error("OpenRouter API Key missing");
+
+            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt, fullDataUrl);
         }
 
         jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -278,6 +365,27 @@ export const generateAdVariation = async (
 
             const result = await callKieImageGen(apiKey, modelId, prompt);
             return result;
+        } else if (serviceConfig.provider === 'openRouter') {
+            const apiKey = settings.apiKeys.openRouter;
+            if (!apiKey) throw new Error("OpenRouter API Key missing");
+
+            // Use the selected model from settings, or fall back to DALL-E 3
+            const modelToUse = serviceConfig.modelId || 'openai/dall-e-3';
+
+            // NOTE: Standard Chat Completions vs Image Generation
+            const result = await callOpenRouter(apiKey, modelToUse, prompt);
+
+            // Check for markdown image format ![...](url)
+            const match = result.match(/\!\[.*?\]\((.*?)\)/);
+            if (match && match[1]) {
+                return match[1]; // URL
+            }
+
+            // If it's just a raw URL
+            if (result.startsWith('http')) return result;
+
+            console.warn("OpenRouter response did not contain a clear image URL:", result);
+            return null;
         }
 
         return null;
