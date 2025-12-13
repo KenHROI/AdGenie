@@ -8,7 +8,7 @@ export const CONFIG = {
   BACKEND_API_URL: import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000/api',
 
   // Toggle this to false to force backend usage only, true allows fallback to localStorage for demo
-  ENABLE_MOCK_FALLBACK: false,
+  ENABLE_MOCK_FALLBACK: true,
 
   // API Timeout configurations (in milliseconds)
   API_TIMEOUT: 30000, // 30 seconds

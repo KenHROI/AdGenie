@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { CONFIG } from '../config';
-import { generateAdVariation } from '../services/aiService';
+import { generateAdVariation, extractAdComponents } from '../services/geminiService';
 import { useSettings } from '../context/SettingsContext';
 import { useNotification } from '../context/NotificationContext';
 import JSZip from 'jszip';
+import GalleryModal from './GalleryModal';
 
 interface ImageGeneratorProps {
     brandData: BrandProfile;
@@ -28,6 +29,13 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     const [results, setResults] = useState<GeneratedImage[]>([]);
     const [progress, setProgress] = useState(0);
     const [currentAction, setCurrentAction] = useState('Initializing...');
+
+    // Design Director State
+    const [adComponents, setAdComponents] = useState<{ headline: string; subheadline: string; cta: string } | null>(null);
+
+    // Gallery Modal State
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [galleryIndex, setGalleryIndex] = useState(0);
 
     const { showToast } = useNotification();
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,7 +63,20 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         setIsGenerating(true);
         setResults([]);
         setProgress(0);
-        showToast("Starting generation workflow...", 'info');
+        showToast("Starting Design Director...", 'info');
+
+        // Step 1: Design Director
+        let components = adComponents;
+        if (!components) {
+            setCurrentAction("Design Director: Analyzing script...");
+            try {
+                components = await extractAdComponents(brandData.adCopy);
+                setAdComponents(components);
+            } catch (e) {
+                console.error("Design Director failed", e);
+                // Fallback objects are handled in service, but we can set defaults here too if needed
+            }
+        }
 
         let completed = 0;
         const totalTasks = (selectedTemplates.length + customSeeds.length) * variationsPerSeed;
@@ -81,14 +102,21 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                         }
                     }
 
-                    const generatedBase64 = await generateAdVariation(settings, base64, brandData, sourceName);
+                    const generatedBase64 = await generateAdVariation(
+                        base64,
+                        brandData,
+                        sourceName,
+                        undefined, // No custom prompt for initial run
+                        components || undefined
+                    );
 
                     if (generatedBase64) {
                         setResults(prev => [...prev, {
                             id: Math.random().toString(36).substr(2, 9),
                             base64: generatedBase64,
-                            promptUsed: sourceName,
+                            promptUsed: `Reskin of ${sourceName}`, // Initial prompt description
                             seedTemplateId: sourceId,
+                            referenceUrl: seedUrl,
                             timestamp: Date.now()
                         }]);
                     }
@@ -125,6 +153,55 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         setCurrentAction('Done!');
         if (completed > 0) {
             showToast("Generation workflow complete!", 'success');
+        }
+    };
+
+
+
+    const handleRespin = async (img: GeneratedImage, newPrompt: string) => {
+        if (!img.referenceUrl) return;
+
+        setIsGenerating(true);
+        showToast("Respinning variation...", 'info');
+
+        try {
+            // Fetch original ref again
+            let base64 = img.referenceUrl;
+            if (img.referenceUrl.startsWith('http')) {
+                const resp = await fetch(img.referenceUrl);
+                const blob = await resp.blob();
+                base64 = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            const generatedBase64 = await generateAdVariation(
+                base64,
+                brandData,
+                img.promptUsed || "Respin",
+                newPrompt,
+                adComponents || undefined
+            );
+
+            if (generatedBase64) {
+                // Replace the old image with new one, or add as new? 
+                // UX: Users usually want to refine, so let's update the existing card but keep history?
+                // For now, let's append as a new variation right next to it or just replace.
+                // Let's UPDATE the local state for that ID to show the new result.
+                setResults(prev => prev.map(item =>
+                    item.id === img.id
+                        ? { ...item, base64: generatedBase64, promptUsed: newPrompt, timestamp: Date.now() }
+                        : item
+                ));
+                showToast("Variation updated!", 'success');
+            }
+        } catch (e) {
+            console.error("Respin failed", e);
+            showToast("Failed to respin", 'error');
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -253,26 +330,82 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                             )}
                         </div>
 
-                        {/* Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {results.map((img) => (
-                                <div key={img.id} className="group relative rounded-2xl overflow-hidden shadow-sm bg-gray-50 aspect-square animate-fade-in border border-gray-100 hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
-                                    <img src={img.base64} alt="Result" className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
-                                        <button
-                                            onClick={() => downloadImage(img.base64, img.id)}
-                                            className="px-5 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-lg flex items-center gap-2"
-                                        >
-                                            <span>Download</span>
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        </button>
+                        {/* Comparison Grid */}
+                        <div className="grid grid-cols-1 gap-12">
+                            {results.map((img, index) => (
+                                <div key={img.id} className="bg-gray-50 rounded-2xl p-6 border border-gray-200 animate-fade-in">
+                                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                                        {/* Reference - Left */}
+                                        <div className="w-full md:w-1/3 flex flex-col gap-2">
+                                            <div className="relative aspect-auto rounded-lg overflow-hidden border border-gray-300 shadow-sm bg-white">
+                                                <img src={img.referenceUrl} alt="Reference" className="w-full h-auto object-cover opacity-80" />
+                                                <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
+                                                    Reference
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-500 font-medium text-center">{img.promptUsed}</p>
+                                        </div>
+
+                                        {/* Result - Right */}
+                                        <div className="w-full md:w-2/3 flex flex-col gap-4">
+                                            <div
+                                                className="relative aspect-auto rounded-xl overflow-hidden shadow-lg border border-indigo-100 group cursor-zoom-in bg-white"
+                                                onClick={() => {
+                                                    setGalleryIndex(index);
+                                                    setIsGalleryOpen(true);
+                                                }}
+                                            >
+                                                <img src={img.base64} alt="Result" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                    <span className="opacity-0 group-hover:opacity-100 bg-white/90 px-4 py-2 rounded-full text-xs font-bold shadow-sm transition-opacity">
+                                                        Click to Expand
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Bar */}
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="text"
+                                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="Edit prompt to refine..."
+                                                    defaultValue="Strictly match reference layout. Use brand colors."
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleRespin(img, e.currentTarget.value);
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={(e) => {
+                                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                        handleRespin(img, input.value);
+                                                    }}
+                                                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                                    disabled={isGenerating}
+                                                >
+                                                    Respin
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        downloadImage(img.base64, img.id);
+                                                    }}
+                                                    className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-lg transition-colors"
+                                                    title="Download"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
+
                             {isGenerating && progress < 100 && (
-                                <div className="aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center animate-pulse gap-2">
-                                    <span className="text-3xl opacity-20">🎨</span>
-                                    <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Rendering</span>
+                                <div className="p-12 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-4 bg-gray-50/50">
+                                    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-gray-400 font-medium text-sm animate-pulse">{currentAction}</p>
                                 </div>
                             )}
                         </div>
@@ -280,6 +413,15 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                 </div>
                 <div ref={messagesEndRef} />
             </div>
+
+            <GalleryModal
+                isOpen={isGalleryOpen}
+                onClose={() => setIsGalleryOpen(false)}
+                images={results}
+                selectedIndex={galleryIndex}
+                onNext={() => setGalleryIndex(prev => (prev + 1) % results.length)}
+                onPrev={() => setGalleryIndex(prev => (prev - 1 + results.length) % results.length)}
+            />
         </div>
     );
 };

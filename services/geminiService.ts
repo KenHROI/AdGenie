@@ -112,31 +112,94 @@ export const describeImageStyle = async (base64Image: string): Promise<Partial<A
   }
 };
 
+export const extractAdComponents = async (adCopy: string): Promise<{
+  headline: string;
+  subheadline: string;
+  cta: string;
+  tone_keywords: string[];
+}> => {
+  const genAI = getAiClient();
+  const model = genAI.getGenerativeModel({
+    model: GeminiModel.ANALYSIS,
+    generationConfig: { responseMimeType: "application/json" }
+  });
+
+  const prompt = `
+    You are an expert Copywriter and Creative Director.
+    Analyze the following Ad Copy and extract the core components for a display ad.
+    
+    Ad Copy: "${adCopy}"
+    
+    Return a JSON object with:
+    - headline: A punchy, attention-grabbing headline (max 8 words).
+    - subheadline: A supporting value proposition (max 12 words).
+    - cta: A strong Call to Action (2-4 words).
+    - tone_keywords: 3 keywords describing the emotional hook.
+    
+    If the text is missing, infer the best professional options.
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text());
+  } catch (error) {
+    console.error("Design Director extraction failed:", error);
+    return {
+      headline: "Special Offer",
+      subheadline: "Check out our latest deals today.",
+      cta: "Learn More",
+      tone_keywords: ["Professional"]
+    };
+  }
+};
+
 export const generateAdVariation = async (
   seedImageBase64: string,
   brand: BrandProfile,
-  templateName: string
+  templateName: string,
+  customPrompt?: string,
+  adComponents?: { headline: string; subheadline: string; cta: string }
 ): Promise<string | null> => {
   const genAI = getAiClient();
   const model = genAI.getGenerativeModel({ model: GeminiModel.IMAGE_GEN });
 
-  const colors = brand.colors.length > 0 ? brand.colors.join(", ") : "brand appropriate colors";
-  const voice = brand.brandVoice ? `Brand Voice: ${brand.brandVoice}.` : "";
-  const typo = brand.typography ? `Typography Style: ${brand.typography}.` : "";
+  // Use extracted components if available, otherwise fallback to raw copy (but shorter)
+  const copyContext = adComponents
+    ? `
+      Headline: "${adComponents.headline}"
+      Subheadline: "${adComponents.subheadline}"
+      CTA: "${adComponents.cta}"
+      `
+    : `Ad Copy: "${brand.adCopy.slice(0, 300)}"`; // Fallback truncation
 
-  const prompt = `
-    Create a professional, high-resolution advertisement image based on the provided reference layout.
+  const colors = brand.colors.length > 0 ? brand.colors.join(", ") : "brand appropriate colors";
+
+  // Allow custom prompt to override instructions, but we still enforce strict layout in the system context
+  const systemContext = `
+    You are an expert graphic designer. Your task is to adapt the provided reference advertisement image to a new brand, while STRICTLY PRESERVING layout and geometry.
     
-    Context:
-    Ad Copy: "${brand.adCopy}"
-    ${voice}
-    ${typo}
-    Brand Colors to incorporate: ${colors}.
-    Style Direction: ${templateName}.
+    STRICT CONSTRAINTS:
+    1. EXACT LAYOUT PRESERVATION: The output MUST align perfectly with the reference image. Buttons, text boxes, and image composition must not move.
+    2. CONTENT ADJUSTMENT: Replace existing text with the provided headlines/CTA. Do not add extra text.
+    3. VISUAL STYLE: Match the target Brand Colors and Typography.
     
-    The image should use the composition of the reference image but completely replace the content to match the Ad Copy and Brand Identity. 
-    Make it look like a finished, high-end marketing asset.
+    INPUT DATA:
+    ${copyContext}
+    Brand Voice: ${brand.brandVoice || "Professional"}
+    Brand Colors: ${colors}
+    Reference Style: ${templateName}
   `;
+
+  const finalPrompt = customPrompt || `
+    INSTRUCTIONS:
+    - Reskin the reference image using the provided 'INPUT DATA'.
+    - Replace the text in the image with the Headline, Subheadline, and CTA provided.
+    - Updates colors to: ${colors}.
+    - Keep the background scene composition identical but "fresh".
+  `;
+
+  const fullPrompt = `${systemContext}\n\n${finalPrompt}`;
 
   try {
     // Check for valid base64
@@ -146,7 +209,7 @@ export const generateAdVariation = async (
     }
 
     const result = await model.generateContent([
-      prompt,
+      fullPrompt,
       {
         inlineData: {
           mimeType: "image/jpeg",

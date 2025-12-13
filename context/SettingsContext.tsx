@@ -6,7 +6,7 @@ const STORAGE_KEY = 'adgenie_settings_v1';
 
 const DEFAULT_SETTINGS: SettingsState = {
     apiKeys: {
-        google: '',
+        google: CONFIG.GEMINI_API_KEY,
         kie: '',
         openRouter: '',
     },

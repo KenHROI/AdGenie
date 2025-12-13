@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { AdTemplate } from '../types';
+import TemplateDetailModal from './TemplateDetailModal';
 import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
 import { describeImageStyle, fetchOpenRouterModels } from '../services/aiService';
@@ -12,8 +13,8 @@ interface SettingsProps {
     onAddTemplate: (template: AdTemplate) => void;
     onRemoveTemplate: (id: string) => void;
     onClearLibrary: () => void;
+    onUpdateTemplate: (template: AdTemplate) => void;
 }
-
 // Utility to resize and compress images before processing
 const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -59,11 +60,14 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File
     });
 };
 
-const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary }) => {
+const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary, onUpdateTemplate }) => {
     const [isUploading, setIsUploading] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [selectedLibIds, setSelectedLibIds] = useState<Set<string>>(new Set());
     const [isPaused, setIsPaused] = useState(false);
     const [progressState, setProgressState] = useState({ current: 0, total: 0 });
     const [errorLogs, setErrorLogs] = useState<string[]>([]);
+    const [viewedTemplate, setViewedTemplate] = useState<AdTemplate | null>(null);
 
     // API Key State (Masking)
     const { settings, updateApiKey, updateService, updateSettings } = useSettings();
@@ -119,7 +123,8 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
         isPausedRef.current = false; // ensure we break loops
         setIsPaused(false);
         setIsUploading(false);
-        showToast("Upload cancelled", "info");
+        setIsScanning(false); // Fix: Reset scanning state
+        showToast("Operation cancelled", "info");
     };
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +252,168 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
         // Reset input
         e.target.value = '';
     };
+
+
+
+    const handleScanLibrary = async () => {
+        console.log("Starting Scan Library...");
+        console.log("Settings:", settings);
+        console.log("Selected IDs:", Array.from(selectedLibIds));
+
+        // Validation: Check for API Key
+        // Assuming we rely on settings passed to describeImageStyle, which uses aiServiceUtils
+        // We should double check if we can make a call.
+
+        const hasGoogle = !!settings.apiKeys.google;
+        const hasOpenRouter = !!settings.apiKeys.openRouter;
+
+        // Simple heuristic: we need at least one vision capable key.
+        // If vision provider is set to 'google', we need google key.
+        // If vision provider is 'openRouter', we need openRouter key.
+
+        if (settings.services.vision.provider === 'google' && !hasGoogle) {
+            console.error("Missing Google Key");
+            showToast("Google API Key missing for Vision Analysis", "error");
+            return;
+        }
+
+        if (settings.services.vision.provider === 'openRouter' && !hasOpenRouter) {
+            console.error("Missing OpenRouter Key");
+            showToast("OpenRouter API Key missing for Vision Analysis", "error");
+            return;
+        }
+
+        const idsToScan = Array.from(selectedLibIds);
+        if (idsToScan.length === 0) {
+            showToast("No templates selected to scan", "info");
+            return;
+        }
+
+        setIsScanning(true);
+        setIsPaused(false);
+        setErrorLogs([]);
+        isPausedRef.current = false;
+        isCancelledRef.current = false;
+
+        setProgressState({ current: 0, total: idsToScan.length });
+
+        let processedCount = 0;
+        let successCount = 0;
+        let failCount = 0;
+
+        // Use a pool for concurrency
+        const CONCURRENCY_LIMIT = 2; // Keep low to avoid rate limits
+        let index = 0;
+
+        const processNextScan = async (): Promise<void> => {
+            if (isCancelledRef.current) return;
+            while (isPausedRef.current) {
+                if (isCancelledRef.current) return;
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            if (index >= idsToScan.length) return;
+            const currentId = idsToScan[index++];
+            const template = templates.find(t => t.id === currentId);
+
+            if (!template) return;
+
+            try {
+                console.log(`Processing ${template.id} (${template.name})`);
+
+                // Determine image source for analysis
+                let base64 = template.imageUrl;
+                // If it's a URL, we need to fetch it to get base64 for the AI service
+                if (template.imageUrl.startsWith('http')) {
+                    console.log(`Fetching ${template.imageUrl}...`);
+                    try {
+                        const resp = await fetch(template.imageUrl, { mode: 'cors' });
+                        if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+                        const blob = await resp.blob();
+                        console.log(`Fetched blob: ${blob.size} bytes`);
+                        base64 = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (fetchErr) {
+                        console.error(`Fetch error for ${template.name}:`, fetchErr);
+                        throw fetchErr;
+                    }
+                }
+
+                console.log("Analyzing with AI...");
+                const aiData = await describeImageStyle(settings, base64);
+                console.log("AI Analysis complete");
+
+                const updatedTemplate = {
+                    ...template,
+                    ...aiData,
+                    tags: [...new Set([...template.tags, ...(aiData.tags || [])])]
+                };
+
+                if (isMounted.current && !isCancelledRef.current) {
+                    console.log("Calling onUpdateTemplate...");
+                    onUpdateTemplate(updatedTemplate);
+                    console.log("onUpdateTemplate returned");
+                    successCount++;
+                }
+
+            } catch (err: any) {
+                console.error(`Scan failed for ${template.name}`, err);
+                failCount++;
+                if (isMounted.current) {
+                    setErrorLogs(prev => [...prev, `${template.name}: ${err.message}`]);
+                }
+            } finally {
+                console.log(`Finally block for ${template.name}`);
+                if (!isCancelledRef.current) {
+                    processedCount++;
+                    if (isMounted.current) {
+                        console.log(`Updating progress: ${processedCount}/${progressState.total}`);
+                        setProgressState(prev => ({ ...prev, current: processedCount }));
+                    }
+                    await processNextScan();
+                }
+            }
+        };
+
+        const workers = [];
+        const initialPoolSize = Math.min(idsToScan.length, CONCURRENCY_LIMIT);
+        for (let i = 0; i < initialPoolSize; i++) {
+            workers.push(processNextScan());
+        }
+
+        await Promise.all(workers);
+
+        if (isMounted.current && !isCancelledRef.current) {
+            setIsScanning(false);
+            setProgressState({ current: 0, total: 0 });
+            if (successCount > 0) showToast(`Scanned ${successCount} images`, "success");
+            if (failCount > 0) showToast(`Failed to scan ${failCount} images`, "error");
+
+            // Clear selection after success
+            setSelectedLibIds(new Set());
+        }
+    };
+
+    const toggleLibSelection = (id: string) => {
+        const newSet = new Set(selectedLibIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedLibIds(newSet);
+    };
+
+    const handleSelectAll = () => {
+        if (selectedLibIds.size === templates.length) {
+            setSelectedLibIds(new Set());
+        } else {
+            setSelectedLibIds(new Set(templates.map(t => t.id)));
+        }
+    };
+
+
 
     return (
         <div className="w-full h-full bg-white flex flex-col overflow-hidden">
@@ -511,6 +678,38 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
+                            {/* Scanning Controls */}
+                            {selectedLibIds.size > 0 && (
+                                <>
+                                    <span className="text-xs font-medium text-gray-500">{selectedLibIds.size} selected</span>
+                                    {!isScanning && (
+                                        <button
+                                            onClick={handleScanLibrary}
+                                            disabled={isScanning}
+                                            className="text-xs font-bold text-white bg-black hover:bg-gray-800 px-3 py-1.5 rounded-md transition-colors flex items-center gap-2"
+                                        >
+                                            <span>⚡️ Scan Selected</span>
+                                        </button>
+                                    )}
+                                </>
+                            )}
+
+                            {isScanning && (
+                                <button
+                                    onClick={handleCancel}
+                                    className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors"
+                                >
+                                    Cancel Scan
+                                </button>
+                            )}
+
+                            <button
+                                onClick={handleSelectAll}
+                                className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200 transition-colors"
+                            >
+                                {selectedLibIds.size === templates.length ? 'Deselect All' : 'Select All'}
+                            </button>
+
                             <button
                                 onClick={onClearLibrary}
                                 className="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md border border-red-200 transition-colors"
@@ -523,11 +722,32 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                         </div>
                     </div>
 
+                    {/* Scanning Progress Bar (reusing structure) */}
+                    {isScanning && (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-4">
+                            <div className="w-8 h-8 flex items-center justify-center bg-white text-blue-600 rounded-full shadow-sm animate-pulse">
+                                ⚡️
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex justify-between mb-1">
+                                    <span className="text-xs font-bold text-blue-900">Scanning Library with AI...</span>
+                                    <span className="text-xs font-mono text-blue-700">{progressState.current} / {progressState.total}</span>
+                                </div>
+                                <div className="w-full bg-blue-200 rounded-full h-1.5">
+                                    <div
+                                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                        style={{ width: `${(progressState.current / Math.max(progressState.total, 1)) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Error Logs */}
                     {errorLogs.length > 0 && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg">
                             <div className="flex justify-between items-center mb-2">
-                                <h4 className="text-sm font-bold text-red-800">Upload Errors ({errorLogs.length})</h4>
+                                <h4 className="text-sm font-bold text-red-800">Errors ({errorLogs.length})</h4>
                                 <button onClick={() => setErrorLogs([])} className="text-xs text-red-600 hover:text-red-800 underline">Dismiss</button>
                             </div>
                             <div className="max-h-32 overflow-y-auto custom-scrollbar">
@@ -573,29 +793,64 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                         </label>
 
                         {/* Existing Templates */}
-                        {templates.map(t => (
-                            <div key={t.id} className="relative rounded-2xl overflow-hidden border border-gray-100 bg-white group aspect-square">
-                                <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
-                                    <p className="text-white text-xs font-bold truncate">{t.name}</p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {t.tags.slice(0, 2).map(tag => (
-                                            <span key={tag} className="text-[9px] bg-white/20 text-white px-1.5 rounded-sm">{tag}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onRemoveTemplate(t.id); }}
-                                    className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all shadow-sm z-10"
-                                    title="Delete Template"
+                        {templates.map(t => {
+                            const isSelected = selectedLibIds.has(t.id);
+                            return (
+                                <div
+                                    key={t.id}
+                                    onClick={() => toggleLibSelection(t.id)}
+                                    className={`relative rounded-2xl overflow-hidden border transition-all cursor-pointer group aspect-square
+                                    ${isSelected ? 'border-2 border-blue-600 ring-2 ring-blue-100' : 'border-gray-100 bg-white hover:border-gray-300'}
+                                `}
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            </div>
-                        ))}
+                                    <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover" />
+
+                                    {/* Selection Indicator */}
+                                    <div className={`absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-white/50 border border-gray-300'}`}>
+                                        {isSelected && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+
+                                    {/* Category Badge */}
+                                    {t.category && (
+                                        <div className="absolute top-2 right-8 bg-black/50 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm">
+                                            {t.category}
+                                        </div>
+                                    )}
+
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                                        <p className="text-white text-xs font-bold truncate">{t.name}</p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {t.tags.slice(0, 2).map(tag => (
+                                                <span key={tag} className="text-[9px] bg-white/20 text-white px-1.5 rounded-sm">{tag}</span>
+                                            ))}
+                                        </div>
+                                        {/* View Details Button (stopPropagation) */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setViewedTemplate(t); }}
+                                            className="mt-2 w-full py-1 bg-white text-black text-[10px] font-bold rounded shadow-sm hover:bg-gray-100"
+                                        >
+                                            View Details
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onRemoveTemplate(t.id); }}
+                                        className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all shadow-sm z-10"
+                                        title="Delete Template"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
+                            )
+                        })}
                     </div>
                 </section>
             </div >
+
+            <TemplateDetailModal
+                isOpen={!!viewedTemplate}
+                template={viewedTemplate}
+                onClose={() => setViewedTemplate(null)}
+            />
         </div >
     );
 };

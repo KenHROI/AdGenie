@@ -254,6 +254,7 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
     - name: A short, punchy 2-3 word name for this style.
     - description: A concise 1-sentence description of the layout.
     - tags: An array of 3-5 keywords.
+    - category: One of "Ecommerce", "Lead Gen", "App Install", "Brand Awareness", "Other".
     
     Return ONLY valid JSON.
   `;

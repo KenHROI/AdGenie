@@ -17,6 +17,15 @@ export interface AdTemplate {
   description: string;
   imageUrl: string; // Placeholder or Thumbnail URL
   tags: string[];
+  category?: UseCaseCategory;
+}
+
+export enum UseCaseCategory {
+  ECOMMERCE = 'Ecommerce',
+  LEAD_GEN = 'Lead Gen',
+  APP_INSTALL = 'App Install',
+  BRAND_AWARENESS = 'Brand Awareness',
+  OTHER = 'Other'
 }
 
 export interface GeneratedImage {
@@ -24,6 +33,7 @@ export interface GeneratedImage {
   base64: string; // Data URL
   promptUsed: string;
   seedTemplateId?: string;
+  referenceUrl?: string; // For side-by-side comparison
   timestamp: number;
 }
 

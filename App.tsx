@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import InputForm from './components/InputForm';
 import SuggestionSelector from './components/SuggestionSelector';
@@ -137,6 +137,11 @@ const MainApp: React.FC = () => {
         }
     }, [showToast]);
 
+    const handleUpdateTemplate = useCallback((updated: AdTemplate) => {
+        console.log(`App.handleUpdateTemplate called for ${updated.id}`);
+        setDefaultLibrary(prev => prev.map(t => t.id === updated.id ? updated : t));
+    }, []);
+
     // Determine what to render in the main area
     const renderContent = () => {
         if (currentStep === AppStep.SETTINGS) {
@@ -147,6 +152,7 @@ const MainApp: React.FC = () => {
                         onAddTemplate={handleAddTemplate}
                         onRemoveTemplate={handleRemoveTemplate}
                         onClearLibrary={handleClearLibrary}
+                        onUpdateTemplate={handleUpdateTemplate}
                     />
                 </div>
             );
@@ -214,9 +220,13 @@ const MainApp: React.FC = () => {
         );
     };
 
+    // ... existing imports ...
+
     return (
         <Layout currentStep={currentStep} onNavigate={handleNavigate}>
-            {renderContent()}
+            <ErrorBoundary>
+                {renderContent()}
+            </ErrorBoundary>
             <ToastContainer />
         </Layout>
     );
@@ -225,7 +235,9 @@ const MainApp: React.FC = () => {
 const App: React.FC = () => (
     <SettingsProvider>
         <NotificationProvider>
-            <MainApp />
+            <ErrorBoundary>
+                <MainApp />
+            </ErrorBoundary>
         </NotificationProvider>
     </SettingsProvider>
 );
