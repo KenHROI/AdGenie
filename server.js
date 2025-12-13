@@ -83,10 +83,17 @@ const uploadLimiter = rateLimit({
 app.use(cors());
 app.use(express.json());
 
-// Serve static files
+// Serve static files (assets with long cache)
 app.use(express.static(path.join(__dirname, 'dist'), {
-  maxAge: '1d',
+  maxAge: '1y',
   etag: true,
+  setHeaders: (res, path) => {
+    if (path.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
 }));
 
 // --- Routes ---
