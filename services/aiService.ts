@@ -247,15 +247,17 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
     const fullDataUrl = `data:${mimeType};base64,${cleanBase64}`; // For OpenRouter
 
     const prompt = `
-    Analyze this image to be used as an advertisement template.
+    Act as a world-class Creative Director archiving high-converting assets for a multi-million dollar swipe file. Analyze the attached image with extreme attention to detail, focusing on psychological hooks, visual hierarchy, and aesthetic nuance.
+
     Identify its layout structure, visual style, and key composition elements.
-    
+
     Return a JSON object with:
-    - name: A short, punchy 2-3 word name for this style.
-    - description: A concise 1-sentence description of the layout.
-    - tags: An array of 3-5 keywords.
+    - name: A short, punchy 2-3 word name for this style (e.g., "Minimalist Hero", "Chaos Maximalism").
+    - description: A detailed strategic description of the layout and why it works effectively for conversion.
+    - visual_analysis: A deep dive into the lighting, color palette (with hex codes if possible), typography style, and texture.
+    - tags: An array of 5-8 descriptive keywords including specific design terms.
     - category: One of "Ecommerce", "Lead Gen", "App Install", "Brand Awareness", "Other".
-    
+
     Return ONLY valid JSON.
   `;
 

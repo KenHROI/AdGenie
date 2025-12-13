@@ -517,153 +517,106 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     </div>
 
                     {/* Service Routing */}
-                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-lg">⚡️</span> Service Routing
+                    <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                        <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <span className="text-xl">⚡️</span> Service Routing
                         </h4>
-                        <div className="space-y-4">
-                            {/* Text Analysis */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Text Analysis</p>
-                                        <p className="text-[10px] text-gray-400">Ad copy & brand voice</p>
-                                    </div>
-                                    <select
-                                        value={settings.services.analysis.provider}
-                                        onChange={(e) => updateService('analysis', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google Gemini</option>
-                                        <option value="openRouter">OpenRouter</option>
-                                    </select>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                            {/* 1. Text Analysis */}
+                            <div className="p-5 rounded-xl border border-gray-100 bg-gray-50 flex flex-col h-full hover:shadow-md transition-shadow">
+                                <div className="mb-4">
+                                    <h5 className="font-bold text-gray-900">Text Analysis</h5>
+                                    <p className="text-xs text-gray-500 mt-1">Ad copy & brand voice</p>
                                 </div>
-                                {settings.services.analysis.provider === 'openRouter' && (
+                                <div className="mt-auto">
                                     <select
-                                        value={settings.services.analysis.modelId || ''}
-                                        onChange={(e) => updateService('analysis', { modelId: e.target.value })}
-                                        className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
+                                        className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all appearance-none cursor-pointer font-medium text-gray-700 hover:border-gray-300"
+                                        value={`${settings.services.analysis.provider}|${settings.services.analysis.modelId || 'default'}`}
+                                        onChange={(e) => {
+                                            const [provider, modelId] = e.target.value.split('|');
+                                            updateService('analysis', { provider: provider as any, modelId: modelId === 'default' ? undefined : modelId });
+                                        }}
+                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.7-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '0.65rem auto' }}
                                     >
-                                        <option value="">Select a model...</option>
-                                        {settings.openRouterModels?.map(m => (
-                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-
-                            {/* Vision */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Vision Analysis</p>
-                                        <p className="text-[10px] text-gray-400">Template analysis</p>
-                                    </div>
-                                    <select
-                                        value={settings.services.vision.provider}
-                                        onChange={(e) => updateService('vision', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google Gemini</option>
-                                        <option value="openRouter">OpenRouter</option>
-                                    </select>
-                                </div>
-                                {settings.services.vision.provider === 'openRouter' && (
-                                    <select
-                                        value={settings.services.vision.modelId || ''}
-                                        onChange={(e) => updateService('vision', { modelId: e.target.value })}
-                                        className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1.5"
-                                    >
-                                        <option value="">Select a model (Vision cap)...</option>
-                                        {settings.openRouterModels?.map(m => (
-                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-
-                            {/* Image Gen */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700">Image Generation</p>
-                                        <p className="text-[10px] text-gray-400">Creating variations</p>
-                                    </div>
-                                    <select
-                                        value={settings.services.imageGeneration.provider}
-                                        onChange={(e) => updateService('imageGeneration', { provider: e.target.value as any })}
-                                        className="text-xs font-medium bg-white border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-black"
-                                    >
-                                        <option value="google">Google (Gemini)</option>
-                                        <option value="kie">Kie.ai (Multi-Model)</option>
-                                        <option value="openRouter">OpenRouter</option>
-                                    </select>
-                                </div>
-
-                                {/* Model Selection based on Provider */}
-                                <div className="pl-3 border-l-2 border-gray-100">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide">Selected Model</label>
-                                        {settings.services.imageGeneration.modelId === 'custom' && (
-                                            <span className="text-[9px] text-blue-500">Custom Configuration</span>
-                                        )}
-                                    </div>
-
-                                    {settings.services.imageGeneration.provider === 'openRouter' ? (
-                                        <select
-                                            value={settings.services.imageGeneration.modelId || ''}
-                                            onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
-                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-2 focus:outline-none focus:border-black cursor-pointer"
-                                        >
-                                            <option value="">Select a model...</option>
+                                        <optgroup label="Google Gemini">
+                                            <option value="google|default">Gemini 2.5 Flash (Default)</option>
+                                        </optgroup>
+                                        <optgroup label="OpenAI (via OpenRouter)">
+                                            <option value="openRouter|openai/gpt-4o">GPT-4o</option>
+                                            <option value="openRouter|openai/gpt-4-turbo">GPT-4 Turbo</option>
                                             {settings.openRouterModels?.map(m => (
-                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                                <option key={m.id} value={`openRouter|${m.id}`}>{m.name}</option>
                                             ))}
-                                        </select>
-                                    ) : (
-                                        <select
-                                            value={settings.services.imageGeneration.modelId || ''}
-                                            onChange={(e) => updateService('imageGeneration', { modelId: e.target.value })}
-                                            className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-2 focus:outline-none focus:border-black cursor-pointer"
-                                        >
-                                            {settings.services.imageGeneration.provider === 'google' ? (
-                                                GOOGLE_IMAGE_MODELS.map(m => (
-                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                ))
-                                            ) : (
-                                                <>
-                                                    <option value="" disabled>Select a Model...</option>
-                                                    <optgroup label="Popular Models">
-                                                        {KIE_IMAGE_MODELS.slice(0, 5).map(m => (
-                                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                                        ))}
-                                                    </optgroup>
-                                                    <optgroup label="All Models">
-                                                        {KIE_IMAGE_MODELS.slice(5).map(m => (
-                                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                                        ))}
-                                                    </optgroup>
-                                                    <option value="custom">Custom ID...</option>
-                                                </>
-                                            )}
-                                        </select>
-                                    )}
-
-                                    {settings.services.imageGeneration.modelId === 'custom' && (
-                                        <div className="mt-2 space-y-2 animate-fadeIn">
-                                            <input
-                                                type="text"
-                                                placeholder="Custom Model ID (e.g. my-custom-model)"
-                                                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5"
-                                            // Assuming we store custom ID in modelId, but need a way to distinguish.
-                                            // Simplified: reusing endpoint field for custom logic if needed, or just let them type.
-                                            // For now, let's keep it simple.
-                                            />
-                                            <p className="text-[9px] text-gray-400">Manual ID entry for new models.</p>
-                                        </div>
-                                    )}
+                                        </optgroup>
+                                    </select>
                                 </div>
                             </div>
+
+                            {/* 2. Vision Analysis */}
+                            <div className="p-5 rounded-xl border border-gray-100 bg-gray-50 flex flex-col h-full hover:shadow-md transition-shadow">
+                                <div className="mb-4">
+                                    <h5 className="font-bold text-gray-900">Vision Analysis</h5>
+                                    <p className="text-xs text-gray-500 mt-1">Template analysis</p>
+                                </div>
+                                <div className="mt-auto">
+                                    <select
+                                        className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all appearance-none cursor-pointer font-medium text-gray-700 hover:border-gray-300"
+                                        value={`${settings.services.vision.provider}|${settings.services.vision.modelId || 'default'}`}
+                                        onChange={(e) => {
+                                            const [provider, modelId] = e.target.value.split('|');
+                                            updateService('vision', { provider: provider as any, modelId: modelId === 'default' ? undefined : modelId });
+                                        }}
+                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.7-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '0.65rem auto' }}
+                                    >
+                                        <optgroup label="Google Gemini">
+                                            <option value="google|default">Gemini 2.5 Flash (Default)</option>
+                                        </optgroup>
+                                        <optgroup label="OpenAI (via OpenRouter)">
+                                            <option value="openRouter|openai/gpt-4o">GPT-4o (Vision)</option>
+                                            <option value="openRouter|openai/gpt-4-turbo">GPT-4 Turbo (Vision)</option>
+                                            {settings.openRouterModels?.filter(m => m.id.includes('vision') || m.id.includes('4o')).map(m => (
+                                                <option key={m.id} value={`openRouter|${m.id}`}>{m.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* 3. Image Generation */}
+                            <div className="p-5 rounded-xl border border-gray-100 bg-gray-50 flex flex-col h-full hover:shadow-md transition-shadow">
+                                <div className="mb-4">
+                                    <h5 className="font-bold text-gray-900">Image Generation</h5>
+                                    <p className="text-xs text-gray-500 mt-1">Creating variations</p>
+                                </div>
+                                <div className="mt-auto">
+                                    <select
+                                        className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all appearance-none cursor-pointer font-medium text-gray-700 hover:border-gray-300"
+                                        value={`${settings.services.imageGeneration.provider}|${settings.services.imageGeneration.modelId || 'default'}`}
+                                        onChange={(e) => {
+                                            const [provider, modelId] = e.target.value.split('|');
+                                            updateService('imageGeneration', { provider: provider as any, modelId: modelId === 'default' ? undefined : modelId });
+                                        }}
+                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.7-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '0.65rem auto' }}
+                                    >
+                                        <optgroup label="Google Imagen">
+                                            {GOOGLE_IMAGE_MODELS.map(m => (
+                                                <option key={m.id} value={`google|${m.id}`}>{m.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Kie.ai (Popular)">
+                                            {KIE_IMAGE_MODELS.slice(0, 5).map(m => (
+                                                <option key={m.id} value={`kie|${m.id}`}>{m.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="OpenAI (via OpenRouter)">
+                                            <option value="openRouter|openai/dall-e-3">DALL-E 3</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>

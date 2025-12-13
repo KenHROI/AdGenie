@@ -17,6 +17,7 @@ export interface AdTemplate {
   description: string;
   imageUrl: string; // Placeholder or Thumbnail URL
   tags: string[];
+  visual_analysis?: string; // Creative Director's deep dive
   category?: UseCaseCategory;
 }
 
