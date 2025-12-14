@@ -470,6 +470,61 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
 
+                {/* Library Management (Semantic Metadata) */}
+                <section className="mb-12 border-b border-gray-100 pb-12">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-gray-900">Library Intelligence</h3>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="font-semibold text-gray-900">Semantic Analysis</h4>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Enrich templates with AI-generated visual categorization (Tags, Style, Industry).
+                                </p>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    if (!settings.apiKeys.google && !settings.apiKeys.kie) {
+                                        showToast("Requires Google or Kie API Key", "error");
+                                        return;
+                                    }
+                                    setIsLoadingModels(true);
+                                    showToast("Starting Library Scan... this may take minutes.", "info");
+
+                                    try {
+                                        const { scanLibraryIterator } = await import('../services/templateService');
+                                        const { AD_LIBRARY } = await import('../constants');
+
+                                        let successCount = 0;
+                                        let errorCount = 0;
+
+                                        // Process in chunks or one by one
+                                        for await (const result of scanLibraryIterator(settings, AD_LIBRARY)) {
+                                            if (result.status === 'success') {
+                                                successCount++;
+                                                if (successCount % 5 === 0) showToast(`Processed ${successCount}/${AD_LIBRARY.length}`, "info");
+                                            } else {
+                                                errorCount++;
+                                            }
+                                        }
+                                        showToast(`Scan Complete: ${successCount} enriched, ${errorCount} failed`, "success");
+                                    } catch (e: any) {
+                                        showToast(`Scan Failed: ${e.message}`, "error");
+                                    } finally {
+                                        setIsLoadingModels(false);
+                                    }
+                                }}
+                                disabled={isLoadingModels}
+                                className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                {isLoadingModels ? 'Scanning...' : 'Scan All 145 Templates'}
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <section className="mb-12 border-b border-gray-100 pb-12">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-gray-900">API Configuration</h3>

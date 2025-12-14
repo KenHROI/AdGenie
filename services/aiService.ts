@@ -289,29 +289,106 @@ export const extractAdComponents = async (settings: SettingsState, adCopy: strin
 
 // --- Service Functions receiving Settings ---
 
+// Imported dynamically to avoid circular dependency if possible, or pass in.
+// But we need getEnrichedTemplates. 
+// Ideally passed as argument, but for now let's modify signature or fetch inside.
+import { getEnrichedTemplates } from './templateService';
+
 export const analyzeAdCopyForStyles = async (
     settings: SettingsState,
     adCopy: string,
-    availableTemplates: AdTemplate[] = AD_LIBRARY
+    // Optional override, otherwise fetches from DB
+    availableTemplates?: AdTemplate[]
 ): Promise<string[]> => {
     if (!adCopy || adCopy.length < 5) return [];
 
     const serviceConfig = settings.services.analysis;
-    const templatesToAnalyze = availableTemplates.slice(0, 50);
 
-    const templatesDescription = templatesToAnalyze.map(
-        (t) => `ID: ${t.id}, Name: ${t.name}, Desc: ${t.description || 'No description'}, Tags: ${t.tags.join(", ")}`
-    ).join("\n");
+    // Step 0: Get Rich Metadata (DB or Cache) - Prefer DB if availableTemplates not passed
+    let templatesToAnalyze = availableTemplates;
+    if (!templatesToAnalyze) {
+        templatesToAnalyze = await getEnrichedTemplates();
+    }
 
-    const prompt = `
-    Analyze the following ad copy/script: "${adCopy}"
-    
-    Based on the tone, content, and likely audience, select exactly 3 Template IDs from the list below that would result in the highest converting image ad.
-    
-    Templates:
+    // Fallback if DB empty/failed -> Use subset of constants
+    if (!templatesToAnalyze || templatesToAnalyze.length === 0) {
+        templatesToAnalyze = AD_LIBRARY.slice(0, 50);
+    }
+
+    // --- STAGE 1: CLASSIFY THE COPY ---
+    const classificationPrompt = `
+    Analyze this ad copy deeply.
+    Copy: "${adCopy}"
+
+    Determine the following strategic attributes:
+    1. Industry: (e.g., "Legal", "Ecommerce", "SaaS", "Local Service")
+    2. Tone: (e.g., "Urgent", "Professional", "Playful", "Trust-focused")
+    3. Goal: (e.g., "Lead Gen", "Sales", "Awareness")
+    4. Key Visual Needs: (e.g., "Needs trust badges", "Needs before/after comparison", "Needs data visualization", "Needs bold typography")
+
+    Return JSON:
+    {
+      "industry": "...",
+      "tone": "...",
+      "goal": "...",
+      "visual_needs": "..."
+    }
+    `;
+
+    let classification: any = {};
+    try {
+        let jsonStr = "{}";
+        if (serviceConfig.provider === 'google') {
+            const apiKey = settings.apiKeys.google;
+            const genAI = new GoogleGenerativeAI(apiKey!);
+            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
+            const res = await model.generateContent(classificationPrompt);
+            jsonStr = res.response.text();
+        } else if (serviceConfig.provider === 'kie') {
+            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', classificationPrompt);
+        } else if (serviceConfig.provider === 'openRouter') {
+            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', classificationPrompt);
+        }
+        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        classification = JSON.parse(jsonStr);
+    } catch (e) {
+        console.warn("Classification failed", e);
+        classification = { industry: "General", tone: "Professional", goal: "Conversion", visual_needs: "High contrast" };
+    }
+
+    // --- STAGE 2: SEMANTIC MATCHING ---
+    // Instead of passing all 145 templates to LLM (Context Limit/Cost), we filter/rank first OR pass rich metadata for top N.
+    // Let's allow the LLM to pick from a "Representative List" of rich metadata.
+
+    // Limit to 40 candidates to fit context window comfortably with rich descriptions
+    // Naive shuffle or random selection if too many? Or just take first 40 (assuming DB merge).
+    // Better: Filter by category if possible.
+
+    const candidates = templatesToAnalyze.slice(0, 40);
+
+    const templatesDescription = candidates.map(
+        (t) => `ID: ${t.id}
+Name: ${t.name}
+Visual Style: ${t.visual_analysis || t.description}
+Tags: ${t.tags.join(", ")}
+Platform: ${t.platformOrigin || 'meta'}
+`
+    ).join("\n---\n");
+
+    const selectionPrompt = `
+    Task: Select exactly 3 Ad Templates that best match the strategy below.
+
+    STRATEGY:
+    - Industry: ${classification.industry}
+    - Tone: ${classification.tone}
+    - Goal: ${classification.goal}
+    - Visual Needs: ${classification.visual_needs}
+
+    Available Templates:
     ${templatesDescription}
-    
-    Return the 3 IDs in a JSON array (e.g. ["id1", "id2", "id3"]). Do not add markdown formatting.
+
+    Return the 3 IDs in a JSON array (e.g. ["id1", "id2", "id3"]). 
+    Prioritize templates where 'Visual Style' matches 'Visual Needs'.
   `;
 
     try {
@@ -319,34 +396,28 @@ export const analyzeAdCopyForStyles = async (
 
         if (serviceConfig.provider === 'google') {
             const apiKey = settings.apiKeys.google;
-            if (!apiKey) throw new Error("Google API Key missing");
-
-            const genAI = new GoogleGenerativeAI(apiKey);
+            const genAI = new GoogleGenerativeAI(apiKey!);
             const model = genAI.getGenerativeModel({
                 model: GeminiModel.ANALYSIS,
                 generationConfig: { responseMimeType: "application/json" }
             });
 
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(selectionPrompt);
             jsonStr = result.response.text();
 
         } else if (serviceConfig.provider === 'kie') {
             const apiKey = settings.apiKeys.kie;
-            if (!apiKey) throw new Error("Kie.ai API Key missing");
-
-            jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt);
+            jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', selectionPrompt);
         } else if (serviceConfig.provider === 'openRouter') {
             const apiKey = settings.apiKeys.openRouter;
-            if (!apiKey) throw new Error("OpenRouter API Key missing");
-
-            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt);
+            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', selectionPrompt);
         }
 
         // Clean Markdown if present
         jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
 
         const selectedIds = JSON.parse(jsonStr) as string[];
-        const validIds = selectedIds.filter(id => templatesToAnalyze.some(t => t.id === id));
+        const validIds = selectedIds.filter(id => templatesToAnalyze!.some(t => t.id === id));
 
         return (validIds.length > 0) ? validIds : templatesToAnalyze.slice(0, 3).map(t => t.id);
 
