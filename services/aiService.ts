@@ -20,13 +20,23 @@ interface OpenRouterModel {
     name: string;
     description?: string;
     context_length?: number;
+    architecture?: {
+        modality?: string;
+        input_modalities?: string[];
+        output_modalities?: string[];
+    };
 }
 
 interface OpenRouterModelsResponse {
     data: OpenRouterModel[];
 }
 
-export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{ id: string, name: string }>> => {
+
+export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{
+    id: string;
+    name: string;
+    capabilities: { isVision?: boolean; isImageGen?: boolean; };
+}>> => {
     try {
         const response = await fetch("https://openrouter.ai/api/v1/models", {
             headers: {
@@ -40,10 +50,31 @@ export const fetchOpenRouterModels = async (apiKey: string): Promise<Array<{ id:
 
         const json = await response.json() as OpenRouterModelsResponse;
 
-        return json.data.map(m => ({
-            id: m.id,
-            name: m.name || m.id
-        })).sort((a, b) => a.name.localeCompare(b.name));
+        return json.data.map(m => {
+            const caps = { isVision: false, isImageGen: false };
+
+            // Capability detection logic based on API Response
+            if (m.architecture) {
+                // Vision: accepts image input
+                if (m.architecture.input_modalities?.includes('image') || m.architecture.modality?.includes('+image->')) {
+                    caps.isVision = true;
+                }
+                // Image Gen: produces image output
+                if (m.architecture.output_modalities?.includes('image') || m.architecture.modality?.includes('->image')) {
+                    caps.isImageGen = true;
+                }
+            }
+
+            // Fallback for known models if architecture is missing
+            if (m.id.includes('vision') || m.id.includes('4o')) caps.isVision = true;
+            if (m.id.includes('dall-e') || m.id.includes('flux') || m.id.includes('midjourney')) caps.isImageGen = true;
+
+            return {
+                id: m.id,
+                name: m.name || m.id,
+                capabilities: caps
+            };
+        }).sort((a, b) => a.name.localeCompare(b.name));
 
     } catch (e) {
         console.error("Failed to fetch OpenRouter models", e);

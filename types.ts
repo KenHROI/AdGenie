@@ -80,5 +80,12 @@ export interface SettingsState {
     vision: ServiceConfig;        // Image description
     video: ServiceConfig;         // Video analysis
   };
-  openRouterModels: Array<{ id: string; name: string }>; // Cache available models
+  openRouterModels: Array<{
+    id: string;
+    name: string;
+    capabilities: {
+      isVision?: boolean;
+      isImageGen?: boolean;
+    };
+  }>; // Cache available models
 }

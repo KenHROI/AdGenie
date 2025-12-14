@@ -1461,21 +1461,33 @@ export const AD_LIBRARY: AdTemplate[] = [
 
 export const DEFAULT_BRAND_COLORS = ['#3B82F6', '#10B981', '#F59E0B'];
 
-export const KIE_IMAGE_MODELS = [
-  { id: 'seedream-3.0-text-to-image', name: 'Seedream 3.0', endpoint: '/api/v1/image/generate' },
-  { id: 'seedream-4.0-text-to-image', name: 'Seedream 4.0', endpoint: '/api/v1/image/generate' },
-  { id: 'seedream-4.5-text-to-image', name: 'Seedream 4.5', endpoint: '/api/v1/image/generate' },
-  { id: 'flux-2-text-to-image', name: 'Flux 2 (Text to Image)', endpoint: '/api/v1/flux/generate' },
-  { id: 'flux-2-pro-text-to-image', name: 'Flux 2 Pro', endpoint: '/api/v1/flux/generate' },
-  { id: 'grok-imagine-text-to-image', name: 'Grok Imagine', endpoint: '/api/v1/image/generate' },
-  { id: 'google-imagen-4-ultra', name: 'Google Imagen 4 Ultra', endpoint: '/api/v1/image/generate' },
-  { id: 'ideogram-v3', name: 'Ideogram v3', endpoint: '/api/v1/image/generate' },
-  { id: 'recraft-v3', name: 'Recraft v3', endpoint: '/api/v1/image/generate' },
-  { id: 'midjourney-v6', name: 'Midjourney v6', endpoint: '/api/v1/image/generate' },
-  { id: 'gpt-4o-image', name: 'GPT-4o Image', endpoint: '/api/v1/gpt4o-image/generate' },
+
+
+// Google Gemini Model Definitions
+export const GOOGLE_TEXT_MODELS = [
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Production)' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Fast)' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite (Efficient)' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Legacy)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Legacy)' },
+];
+
+export const GOOGLE_VISION_MODELS = [
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Multimodal)' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Multimodal)' },
+  // Gemini models are inherently multimodal, so these overlap with text models
 ];
 
 export const GOOGLE_IMAGE_MODELS = [
-  { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro (Gemini)' },
+  { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Preview)' }, // New
+  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)' },
+  { id: 'imagen-3.0-generate-001', name: 'Imagen 3' },
 ];
 
+// Kie.ai Helper Lists (Simplified subset)
+export const KIE_IMAGE_MODELS = [
+  { id: 'flux-pro-1.1-ultra', name: 'Flux Pro 1.1 Ultra', endpoint: '/v1/images/generations' },
+  { id: 'flux-dev', name: 'Flux Dev', endpoint: '/v1/images/generations' },
+  { id: 'midjourney-v6', name: 'Midjourney v6', endpoint: '/v1/images/generations' }, // Placeholder if supported
+  { id: 'ideogram-v2', name: 'Ideogram v2', endpoint: '/v1/images/generations' },
+];
