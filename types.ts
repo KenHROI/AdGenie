@@ -36,6 +36,8 @@ export interface GeneratedImage {
   seedTemplateId?: string;
   referenceUrl?: string; // For side-by-side comparison
   timestamp: number;
+  status?: 'pending' | 'success' | 'error';
+  error?: string;
 }
 
 export enum AppStep {

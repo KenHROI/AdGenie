@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { CONFIG } from '../config';
-import { generateAdVariation, extractAdComponents } from '../services/geminiService';
+import { generateAdVariation, extractAdComponents } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import { useNotification } from '../context/NotificationContext';
 import JSZip from 'jszip';
@@ -61,7 +61,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
     const startGeneration = async () => {
         setIsGenerating(true);
-        setResults([]);
         setProgress(0);
         showToast("Starting Design Director...", 'info');
 
@@ -70,83 +69,109 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         if (!components) {
             setCurrentAction("Design Director: Analyzing script...");
             try {
-                components = await extractAdComponents(brandData.adCopy);
+                components = await extractAdComponents(settings, brandData.adCopy);
                 setAdComponents(components);
             } catch (e) {
                 console.error("Design Director failed", e);
-                // Fallback objects are handled in service, but we can set defaults here too if needed
             }
         }
 
-        let completed = 0;
-        const totalTasks = (selectedTemplates.length + customSeeds.length) * variationsPerSeed;
+        // Initialize Placeholders
+        const newResults: GeneratedImage[] = [];
 
-        const processSeed = async (seedUrl: string, sourceName: string, sourceId?: string) => {
-            for (let i = 0; i < variationsPerSeed; i++) {
-                setCurrentAction(`Variation ${i + 1} for ${sourceName}...`);
-                try {
-                    let base64 = seedUrl;
-                    if (seedUrl.startsWith('http')) {
-                        // Attempt to fetch, handles CORS if server allows, otherwise might fail.
-                        // For Google Drive thumbnails, it's often fine.
-                        try {
-                            const resp = await fetch(seedUrl);
-                            const blob = await resp.blob();
-                            base64 = await new Promise<string>((resolve) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result as string);
-                                reader.readAsDataURL(blob);
-                            });
-                        } catch (e) {
-                            console.warn("Could not fetch image for base64 conversion, trying direct URL", e);
-                        }
-                    }
-
-                    const generatedBase64 = await generateAdVariation(
-                        base64,
-                        brandData,
-                        sourceName,
-                        undefined, // No custom prompt for initial run
-                        components || undefined
-                    );
-
-                    if (generatedBase64) {
-                        setResults(prev => [...prev, {
-                            id: Math.random().toString(36).substr(2, 9),
-                            base64: generatedBase64,
-                            promptUsed: `Reskin of ${sourceName}`, // Initial prompt description
-                            seedTemplateId: sourceId,
-                            referenceUrl: seedUrl,
-                            timestamp: Date.now()
-                        }]);
-                    }
-                } catch (err: any) {
-                    console.error(`Failed to generate`, err);
-                    if (err.message && err.message.includes("Requested entity was not found")) {
-                        showToast("API Key expired or invalid. Please reconnect.", 'error');
-                        showToast("API Key expired or invalid. Please check settings.", 'error');
-                        setIsGenerating(false);
-                        return;
-                    } else if (err.message?.includes("Quota")) {
-                        showToast("Quota exceeded. Slowing down...", 'error');
-                    }
-                } finally {
-                    completed++;
-                    setProgress((completed / totalTasks) * 100);
+        // Helper to add placeholders
+        const addPlaceholders = (seeds: Array<{ url: string; name: string; id?: string }>) => {
+            seeds.forEach(seed => {
+                for (let i = 0; i < variationsPerSeed; i++) {
+                    newResults.push({
+                        id: Math.random().toString(36).substr(2, 9),
+                        base64: '', // Empty pending
+                        promptUsed: 'Pending generation...',
+                        seedTemplateId: seed.id,
+                        referenceUrl: seed.url,
+                        timestamp: Date.now(),
+                        status: 'pending' // Initial status
+                    });
                 }
-            }
+            });
         };
 
-        // Process templates
-        for (const template of selectedTemplates) {
-            if (!hasKey) break;
-            await processSeed(template.imageUrl, template.name, template.id);
-        }
+        // Add Template Placeholders
+        addPlaceholders(selectedTemplates.map(t => ({ url: t.imageUrl, name: t.name, id: t.id })));
 
-        // Process custom seeds
-        for (let i = 0; i < customSeeds.length; i++) {
+        // Add Custom Seed Placeholders
+        addPlaceholders(customSeeds.map((s, i) => ({ url: s, name: `Custom Seed ${i + 1}` })));
+
+        setResults(newResults); // Show placeholders immediately
+
+        let completed = 0;
+        const totalTasks = newResults.length;
+
+        // Process each pending item
+        for (const item of newResults) {
             if (!hasKey) break;
-            await processSeed(customSeeds[i], `Custom Seed ${i + 1} `);
+
+            setCurrentAction(`Generating variation for ${item.seedTemplateId || 'custom seed'}...`);
+
+            try {
+                let base64Ref = item.referenceUrl!;
+                if (base64Ref.startsWith('http')) {
+                    try {
+                        const resp = await fetch(base64Ref);
+                        const blob = await resp.blob();
+                        base64Ref = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (e) {
+                        console.warn("Could not fetch image for base64 conversion", e);
+                        // Continue with original URL, some APIs might handle it or fail later
+                    }
+                }
+
+                // Call Generation Service
+                const { image, prompt } = await generateAdVariation(
+                    settings,
+                    base64Ref,
+                    brandData,
+                    "Reference Style", // You might want to pass dynamic style names if available
+                );
+
+                if (image) {
+                    setResults(prev => prev.map(r => r.id === item.id ? {
+                        ...r,
+                        base64: image,
+                        promptUsed: prompt,
+                        status: 'success'
+                    } : r));
+                } else {
+                    throw new Error("No image returned from provider");
+                }
+
+            } catch (err: any) {
+                console.error(`Failed to generate item ${item.id}`, err);
+
+                let errorMessage = "Generation failed";
+                if (err.message?.includes("Quota")) errorMessage = "Quota Exceeded";
+                if (err.message?.includes("API Key")) errorMessage = "Invalid API Key";
+
+                setResults(prev => prev.map(r => r.id === item.id ? {
+                    ...r,
+                    status: 'error',
+                    error: errorMessage,
+                    promptUsed: "Generation Failed"
+                } : r));
+
+                if (err.message && err.message.includes("Requested entity was not found")) {
+                    showToast("API Key expired or invalid.", 'error');
+                    setIsGenerating(false);
+                    return; // Stop implementation
+                }
+            } finally {
+                completed++;
+                setProgress((completed / totalTasks) * 100);
+            }
         }
 
         setIsGenerating(false);
@@ -164,42 +189,51 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         setIsGenerating(true);
         showToast("Respinning variation...", 'info');
 
+        // Mark as pending
+        setResults(prev => prev.map(r => r.id === img.id ? { ...r, status: 'pending' as const } : r));
+
         try {
             // Fetch original ref again
             let base64 = img.referenceUrl;
             if (img.referenceUrl.startsWith('http')) {
-                const resp = await fetch(img.referenceUrl);
-                const blob = await resp.blob();
-                base64 = await new Promise<string>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
+                try {
+                    const resp = await fetch(img.referenceUrl);
+                    const blob = await resp.blob();
+                    base64 = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (e) {
+                    console.warn("Could not fetch image for base64 conversion", e);
+                }
             }
 
-            const generatedBase64 = await generateAdVariation(
+            const { image, prompt } = await generateAdVariation(
+                settings,
                 base64,
                 brandData,
-                img.promptUsed || "Respin",
-                newPrompt,
-                adComponents || undefined
+                newPrompt
             );
 
-            if (generatedBase64) {
-                // Replace the old image with new one, or add as new? 
-                // UX: Users usually want to refine, so let's update the existing card but keep history?
-                // For now, let's append as a new variation right next to it or just replace.
-                // Let's UPDATE the local state for that ID to show the new result.
+            if (image) {
                 setResults(prev => prev.map(item =>
                     item.id === img.id
-                        ? { ...item, base64: generatedBase64, promptUsed: newPrompt, timestamp: Date.now() }
+                        ? { ...item, base64: image, promptUsed: prompt, timestamp: Date.now(), status: 'success' as const }
                         : item
                 ));
                 showToast("Variation updated!", 'success');
+            } else {
+                throw new Error("No image returned");
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Respin failed", e);
             showToast("Failed to respin", 'error');
+            setResults(prev => prev.map(r => r.id === img.id ? {
+                ...r,
+                status: 'error' as const,
+                error: e.message || "Respin failed"
+            } : r));
         } finally {
             setIsGenerating(false);
         }
@@ -343,71 +377,90 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                                                     Reference
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-gray-500 font-medium text-center">{img.promptUsed}</p>
+                                            <p className="text-xs text-gray-500 font-medium text-center truncate">{img.seedTemplateId || 'Custom Upload'}</p>
                                         </div>
 
                                         {/* Result - Right */}
                                         <div className="w-full md:w-2/3 flex flex-col gap-4">
                                             <div
-                                                className="relative aspect-auto rounded-xl overflow-hidden shadow-lg border border-indigo-100 group cursor-zoom-in bg-white"
+                                                className={`relative aspect-auto rounded-xl overflow-hidden shadow-lg border group cursor-zoom-in bg-white min-h-[300px] flex items-center justify-center
+                                                    ${img.status === 'error' ? 'border-red-200 bg-red-50' : 'border-indigo-100'}
+                                                `}
                                                 onClick={() => {
-                                                    setGalleryIndex(index);
-                                                    setIsGalleryOpen(true);
+                                                    if (img.status === 'success') {
+                                                        setGalleryIndex(index);
+                                                        setIsGalleryOpen(true);
+                                                    }
                                                 }}
                                             >
-                                                <img src={img.base64} alt="Result" className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                                    <span className="opacity-0 group-hover:opacity-100 bg-white/90 px-4 py-2 rounded-full text-xs font-bold shadow-sm transition-opacity">
-                                                        Click to Expand
-                                                    </span>
-                                                </div>
+                                                {/* Rendering State */}
+                                                {img.status === 'pending' && (
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                        <span className="text-sm font-medium text-indigo-600 animate-pulse">Generating Variation...</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Error State */}
+                                                {img.status === 'error' && (
+                                                    <div className="flex flex-col items-center gap-2 p-8 text-center">
+                                                        <div className="text-3xl">⚠️</div>
+                                                        <span className="text-sm font-bold text-red-600">Generation Failed</span>
+                                                        <span className="text-xs text-red-400">{img.error || 'Unknown error'}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Success State */}
+                                                {img.status === 'success' && (
+                                                    <>
+                                                        <img src={img.base64} alt="Result" className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                            <span className="opacity-0 group-hover:opacity-100 bg-white/90 px-4 py-2 rounded-full text-xs font-bold shadow-sm transition-opacity">
+                                                                Click to Expand
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
 
                                             {/* Action Bar */}
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="text"
-                                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Edit prompt to refine..."
-                                                    defaultValue="Strictly match reference layout. Use brand colors."
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            handleRespin(img, e.currentTarget.value);
-                                                        }
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={(e) => {
-                                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                                        handleRespin(img, input.value);
-                                                    }}
-                                                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                                                    disabled={isGenerating}
-                                                >
-                                                    Respin
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        downloadImage(img.base64, img.id);
-                                                    }}
-                                                    className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-lg transition-colors"
-                                                    title="Download"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                </button>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Prompt Used</label>
+                                                <div className="flex items-center gap-3">
+                                                    <textarea
+                                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                                                        placeholder="Prompt will appear here..."
+                                                        defaultValue={img.promptUsed}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            const input = e.currentTarget.parentElement?.previousElementSibling?.querySelector('textarea') as HTMLTextAreaElement;
+                                                            if (input) handleRespin(img, input.value);
+                                                        }}
+                                                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        disabled={isGenerating || img.status === 'pending'}
+                                                    >
+                                                        Respin
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            downloadImage(img.base64, img.id);
+                                                        }}
+                                                        className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        title="Download"
+                                                        disabled={img.status !== 'success'}
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             ))}
-
-                            {isGenerating && progress < 100 && (
-                                <div className="p-12 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-4 bg-gray-50/50">
-                                    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <p className="text-gray-400 font-medium text-sm animate-pulse">{currentAction}</p>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

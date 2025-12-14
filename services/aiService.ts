@@ -196,6 +196,66 @@ const callKieImageGen = async (apiKey: string, model: string, prompt: string, im
     return null;
 };
 
+export const extractAdComponents = async (settings: SettingsState, adCopy: string): Promise<{
+    headline: string;
+    subheadline: string;
+    cta: string;
+    tone_keywords: string[];
+}> => {
+    const serviceConfig = settings.services.analysis;
+    const prompt = `
+    You are an expert Copywriter and Creative Director.
+    Analyze the following Ad Copy and extract the core components for a display ad.
+    
+    Ad Copy: "${adCopy}"
+    
+    Return a JSON object with:
+    - headline: A punchy, attention-grabbing headline (max 8 words).
+    - subheadline: A supporting value proposition (max 12 words).
+    - cta: A strong Call to Action (2-4 words).
+    - tone_keywords: 3 keywords describing the emotional hook.
+    
+    If the text is missing, infer the best professional options.
+  `;
+
+    try {
+        let jsonStr = "{}";
+
+        if (serviceConfig.provider === 'google') {
+            const apiKey = settings.apiKeys.google;
+            if (!apiKey) throw new Error("Google API Key missing");
+
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+                model: GeminiModel.ANALYSIS,
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const result = await model.generateContent(prompt);
+            jsonStr = result.response.text();
+
+        } else if (serviceConfig.provider === 'kie') {
+            const apiKey = settings.apiKeys.kie;
+            jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', prompt);
+        } else if (serviceConfig.provider === 'openRouter') {
+            const apiKey = settings.apiKeys.openRouter;
+            jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt);
+        }
+
+        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+
+    } catch (error) {
+        console.error("Design Director extraction failed:", error);
+        return {
+            headline: "Special Offer",
+            subheadline: "Check out our latest deals today.",
+            cta: "Learn More",
+            tone_keywords: ["Professional"]
+        };
+    }
+};
+
 // --- Service Functions receiving Settings ---
 
 export const analyzeAdCopyForStyles = async (
@@ -337,7 +397,7 @@ export const generateAdVariation = async (
     seedImageBase64: string,
     brand: BrandProfile,
     templateName: string
-): Promise<string | null> => {
+): Promise<{ image: string | null; prompt: string }> => {
     const serviceConfig = settings.services.imageGeneration;
 
     const colors = brand.colors.length > 0 ? brand.colors.join(", ") : "brand appropriate colors";
@@ -381,11 +441,11 @@ export const generateAdVariation = async (
             if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
                 for (const part of response.candidates[0].content.parts) {
                     if (part.inlineData) {
-                        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                        return { image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`, prompt };
                     }
                 }
             }
-            return null;
+            return { image: null, prompt };
 
         } else if (serviceConfig.provider === 'kie') {
             const apiKey = settings.apiKeys.kie;
@@ -394,11 +454,9 @@ export const generateAdVariation = async (
             const modelId = serviceConfig.modelId || 'seedream-3.0-text-to-image';
 
             // Call Kie.ai Generation
-            // Note: If using Custom endpoint, modelId might be the custom string.
-            // Our helper resolveKieEndpoint handles falling back to default endpoint if not in registry.
+            const image = await callKieImageGen(apiKey, modelId, prompt);
+            return { image, prompt };
 
-            const result = await callKieImageGen(apiKey, modelId, prompt);
-            return result;
         } else if (serviceConfig.provider === 'openRouter') {
             const apiKey = settings.apiKeys.openRouter;
             if (!apiKey) throw new Error("OpenRouter API Key missing");
@@ -412,17 +470,17 @@ export const generateAdVariation = async (
             // Check for markdown image format ![...](url)
             const match = result.match(/\!\[.*?\]\((.*?)\)/);
             if (match && match[1]) {
-                return match[1]; // URL
+                return { image: match[1], prompt };
             }
 
             // If it's just a raw URL
-            if (result.startsWith('http')) return result;
+            if (result.startsWith('http')) return { image: result, prompt };
 
             console.warn("OpenRouter response did not contain a clear image URL:", result);
-            return null;
+            return { image: null, prompt };
         }
 
-        return null;
+        return { image: null, prompt };
 
     } catch (error: any) {
         console.error("Error generating image:", error);
