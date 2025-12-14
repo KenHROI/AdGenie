@@ -25,13 +25,13 @@ const logError = (msg, error) => {
   });
 };
 
-// Validate required environment variables
+// Validate validation - CHANGED to optional for deployment stability
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_KEY', 'SUPABASE_BUCKET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
-  process.exit(1);
+  console.warn('⚠️  Missing environment variables for Supabase:', missingEnvVars.join(', '));
+  console.warn('⚠️  Backend endpoints requiring Supabase will fail, but server will start.');
 }
 
 const app = express();
@@ -52,9 +52,17 @@ const upload = multer({
   }
 });
 
-// Supabase Setup
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+// Supabase Setup (Optional)
+let supabase = null;
 const BUCKET_NAME = process.env.SUPABASE_BUCKET;
+
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  try {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  } catch (e) {
+    console.error("Failed to init Supabase client", e);
+  }
+}
 
 // Security middleware
 app.use(helmet({
@@ -105,6 +113,7 @@ app.get('/api/health', (req, res) => {
 
 // GET: Fetch Library
 app.get('/api/images/library', async (req, res) => {
+  if (!supabase) return res.json([]); // Return empty if no DB
   try {
     const { data, error } = await supabase
       .from('image_library')
@@ -125,6 +134,7 @@ app.get('/api/images/library', async (req, res) => {
 
 // DELETE: Clear ENTIRE Library
 app.delete('/api/images/library', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
   try {
     const { data: files, error: fetchError } = await supabase
       .from('image_library')
@@ -162,6 +172,7 @@ app.delete('/api/images/library', async (req, res) => {
 
 // POST: Upload Image
 app.post('/api/images/upload', uploadLimiter, upload.single('file'), async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
   try {
     if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
@@ -223,6 +234,7 @@ app.post('/api/images/upload', uploadLimiter, upload.single('file'), async (req,
 
 // DELETE: Single Image
 app.delete('/api/images/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'Missing image ID' });
