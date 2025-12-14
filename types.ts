@@ -50,7 +50,7 @@ export enum AppStep {
 
 export enum GeminiModel {
   // Retain for backward compatibility or refactor to generic "AIModel"
-  ANALYSIS = 'gemini-2.5-flash',
+  ANALYSIS = 'gemini-1.5-pro',
   IMAGE_GEN = 'gemini-3-pro-image-preview', // User explicitly requested this
 }
 

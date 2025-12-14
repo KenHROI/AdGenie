@@ -344,9 +344,9 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
 
     Return a JSON object with:
     - name: A short, punchy 2-3 word name for this style (e.g., "Minimalist Hero", "Chaos Maximalism").
-    - description: A detailed strategic description of the layout and why it works effectively for conversion.
+    - description: A detailed strategic description of the layout and why it works effectively for conversion. Focus on text placement, color psychology, and use of space.
     - visual_analysis: A deep dive into the lighting, color palette (with hex codes if possible), typography style, and texture.
-    - tags: An array of 5-8 descriptive keywords including specific design terms.
+    - tags: An array of 5-8 descriptive keywords including specific design terms. DO NOT use generic tags like "custom", "template", or "default". Use terms like "Swiss Style", "Pastel", "Geometric", "High Contrast".
     - category: One of "Ecommerce", "Lead Gen", "App Install", "Brand Awareness", "Other".
 
     Return ONLY valid JSON.

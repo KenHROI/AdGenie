@@ -63,6 +63,7 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File
 const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary, onUpdateTemplate }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
+    const [scanStatus, setScanStatus] = useState<string>('');
     const [selectedLibIds, setSelectedLibIds] = useState<Set<string>>(new Set());
     const [isPaused, setIsPaused] = useState(false);
     const [progressState, setProgressState] = useState({ current: 0, total: 0 });
@@ -186,6 +187,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     tags: ["custom"]
                 };
                 try {
+                    if (isMounted.current) setScanStatus && setScanStatus(`Analyzing ${file.name}...`);
                     const result = await describeImageStyle(settings, base64);
                     if (result && result.name) {
                         aiData = result;
@@ -344,6 +346,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 }
 
                 console.log("Analyzing with AI...");
+                if (isMounted.current) setScanStatus && setScanStatus(`Analyzing structure of ${template.name}...`);
                 const aiData = await describeImageStyle(settings, base64);
                 console.log("AI Analysis complete");
 
@@ -690,7 +693,10 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                             </div>
                             <div className="flex-1">
                                 <div className="flex justify-between mb-1">
-                                    <span className="text-xs font-bold text-blue-900">Scanning Library with AI...</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-blue-900">Scanning Library with AI...</span>
+                                        <span className="text-[10px] text-blue-600 font-mono animate-pulse">{scanStatus || "Initializing..."}</span>
+                                    </div>
                                     <span className="text-xs font-mono text-blue-700">{progressState.current} / {progressState.total}</span>
                                 </div>
                                 <div className="w-full bg-blue-200 rounded-full h-1.5">
