@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrandProfile, AdTemplate, GeneratedImage } from '../types';
 import { CONFIG } from '../config';
-import { generateAdVariation, extractAdComponents } from '../services/aiService';
+import { generateAdVariation, extractAdComponents, analyzeLayoutConstraints, generateFittedCopy } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import { useNotification } from '../context/NotificationContext';
 import JSZip from 'jszip';
@@ -130,12 +130,23 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                     }
                 }
 
-                // Call Generation Service
+                // Agent 1: Design Director (Vision) - Analyze Constraints
+                setCurrentAction('Design Director: Analyzing layout constraints...');
+                const constraints = await analyzeLayoutConstraints(settings, base64Ref);
+
+                // Agent 2: Copywriter (Text) - Rewrite text to fit constraints
+                setCurrentAction('Copywriter: Rewriting text to fit strict limits...');
+                const fittedCopy = await generateFittedCopy(settings, brandData.adCopy, constraints);
+
+                // Agent 3: Illustrator (Generation) - Generate image
+                setCurrentAction('Illustrator: Rendering final design...');
                 const { image, prompt } = await generateAdVariation(
                     settings,
                     base64Ref,
                     brandData,
-                    "Reference Style", // You might want to pass dynamic style names if available
+                    "Reference Style",
+                    undefined,
+                    fittedCopy // Pass the fitted components!
                 );
 
                 if (image) {

@@ -149,7 +149,7 @@ const callKieChat = async (apiKey: string, model: string, prompt: string, image?
     return data.choices[0]?.message?.content || "";
 };
 
-const callKieImageGen = async (apiKey: string, model: string, prompt: string, image?: string): Promise<string | null> => {
+const callKieImageGen = async (apiKey: string, model: string, prompt: string, image?: string, size: string = "1024x1024"): Promise<string | null> => {
     const endpointPath = resolveKieEndpoint(model);
     const url = `https://api.kie.ai${endpointPath}`;
 
@@ -159,7 +159,7 @@ const callKieImageGen = async (apiKey: string, model: string, prompt: string, im
         model: model,
         prompt: prompt,
         n: 1,
-        size: "1024x1024",
+        size: size,
         response_format: "b64_json" // Prefer base64
     };
 
@@ -391,12 +391,127 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
         return { name: "Custom Upload", description: "User uploaded template", tags: ["custom"] };
     }
 };
+// --- New Layout Analysis & Copy Fitting Functions ---
 
+export interface LayoutConstraints {
+    headline: { maxChars: number; location: string };
+    subheadline: { maxChars: number; location: string };
+    cta: { maxChars: number; location: string };
+    body: { maxChars: number; location: string };
+}
+
+export const analyzeLayoutConstraints = async (settings: SettingsState, base64Image: string): Promise<LayoutConstraints> => {
+    const serviceConfig = settings.services.vision;
+    let cleanBase64 = base64Image;
+    if (base64Image.includes('base64,')) {
+        cleanBase64 = base64Image.split(',')[1];
+    }
+    const fullDataUrl = base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${cleanBase64}`;
+
+    const prompt = `
+        You are a Technical Design Director. Analyze this image template to determine strict text constraints.
+        Identify where text appears (Headline, Subheadline, CTA Button, Body Text).
+        
+        For each area, estimate the MAXIMUM number of characters that can fit without breaking the layout or overlapping elements.
+        Also briefly describe the location (e.g., "Top center", "Bottom right button").
+        
+        Return JSON format:
+        {
+          "headline": { "maxChars": 30, "location": "..." },
+          "subheadline": { "maxChars": 60, "location": "..." },
+          "cta": { "maxChars": 15, "location": "..." },
+          "body": { "maxChars": 200, "location": "..." }
+        }
+    `;
+
+    try {
+        let jsonStr = "{}";
+        if (serviceConfig.provider === 'google') {
+            const apiKey = settings.apiKeys.google;
+            const genAI = new GoogleGenerativeAI(apiKey!);
+            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
+            const result = await model.generateContent([prompt, { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }]);
+            jsonStr = result.response.text();
+        } else if (serviceConfig.provider === 'kie') {
+            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', prompt, fullDataUrl);
+        } else if (serviceConfig.provider === 'openRouter') {
+            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', prompt, fullDataUrl);
+        }
+
+        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        console.warn("Layout analysis failed", e);
+        return {
+            headline: { maxChars: 40, location: "top" },
+            subheadline: { maxChars: 100, location: "middle" },
+            cta: { maxChars: 15, location: "bottom" },
+            body: { maxChars: 200, location: "center" }
+        };
+    }
+};
+
+export const generateFittedCopy = async (
+    settings: SettingsState,
+    originalCopy: string,
+    constraints: LayoutConstraints
+): Promise<{ headline: string; subheadline: string; cta: string; body: string }> => {
+    const serviceConfig = settings.services.analysis;
+
+    const prompt = `
+        You are a Senior Copywriter. Rewrite the following Ad Copy to STRICTLY fit the provided layout constraints.
+        
+        ORIGINAL COPY:
+        "${originalCopy}"
+        
+        CONSTRAINTS:
+        - Headline: Max ${constraints.headline.maxChars} chars. (Location: ${constraints.headline.location})
+        - Subheadline: Max ${constraints.subheadline.maxChars} chars. (Location: ${constraints.subheadline.location})
+        - CTA: Max ${constraints.cta.maxChars} chars. (Location: ${constraints.cta.location})
+        - Body: Max ${constraints.body.maxChars} chars. (Location: ${constraints.body.location})
+        
+        INSTRUCTIONS:
+        1. Keep the core message and emotional hook.
+        2. Aggressively edit or summarize to fit the character limits.
+        3. Do not assume the design can expand.
+        
+        Return JSON:
+        { "headline": "...", "subheadline": "...", "cta": "...", "body": "..." }
+    `;
+
+    try {
+        let jsonStr = "{}";
+        if (serviceConfig.provider === 'google') {
+            const apiKey = settings.apiKeys.google;
+            const genAI = new GoogleGenerativeAI(apiKey!);
+            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
+            const result = await model.generateContent(prompt);
+            jsonStr = result.response.text();
+        } else if (serviceConfig.provider === 'kie') {
+            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', prompt);
+        } else if (serviceConfig.provider === 'openRouter') {
+            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', prompt);
+        }
+
+        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        console.warn("Copy fitting failed", e);
+        return {
+            headline: "Special Offer",
+            subheadline: "Don't miss out.",
+            cta: "Click Here",
+            body: originalCopy.slice(0, 100)
+        };
+    }
+};
 export const generateAdVariation = async (
     settings: SettingsState,
     seedImageBase64: string,
     brand: BrandProfile,
-    templateName: string
+    templateName: string,
+    customPrompt?: string,
+    fittedComponents?: { headline: string; subheadline: string; cta: string; body: string }
 ): Promise<{ image: string | null; prompt: string }> => {
     const serviceConfig = settings.services.imageGeneration;
 
@@ -404,15 +519,44 @@ export const generateAdVariation = async (
     const voice = brand.brandVoice ? `Brand Voice: ${brand.brandVoice}.` : "";
     const typo = brand.typography ? `Typography Style: ${brand.typography}.` : "";
 
+    // If we have fitted components, we use a much more specific layout prompt
+    let copyInstructions = "";
+    if (fittedComponents) {
+        copyInstructions = `
+        STRICT LAYOUT INSTRUCTIONS:
+        - Headline: "${fittedComponents.headline}" (Must fit headline area)
+        - Subhead: "${fittedComponents.subheadline}" (Must fit subhead area)
+        - Body Text: "${fittedComponents.body}" (Must fit body area)
+        - CTA Button: "${fittedComponents.cta}" (Must fit button)
+        DO NOT ADD ANY OTHER TEXT. TEXT MUST NOT OVERFLOW.
+        `;
+    } else {
+        copyInstructions = `Ad Copy: "${brand.adCopy.slice(0, 300)}"`;
+    }
+
     const prompt = `
     Create a professional, high-resolution advertisement image based on the provided reference layout.
-    Ad Copy: "${brand.adCopy}"
+    ${copyInstructions}
     ${voice}
     ${typo}
     Brand Colors: ${colors}.
     Style Direction: ${templateName}.
-    The image should use the composition of the reference image but replace content to match the Ad Copy.
+    
+    CRITICAL:
+    1. PRESERVE THE LAYOUT OF THE REFERENCE IMAGE EXACTLY.
+    2. REPLACE TEXT WITH THE PROVIDED STRINGS.
+    3. DO NOT CHANGE THE POSITION OF ELEMENTS.
+    4. ENSURE TEXT CONTRAST AND READABILITY.
   `;
+
+    // Aspect Ratio Mapping
+    const ratioMap = {
+        '1:1': '1024x1024',
+        '9:16': '1024x1792',
+        '16:9': '1792x1024',
+        '4:3': '1024x768'
+    };
+    const size = ratioMap[settings.preferredRatio || '1:1'];
 
     try {
         if (serviceConfig.provider === 'google') {
@@ -421,7 +565,6 @@ export const generateAdVariation = async (
 
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({
-                // Explicitly use the model requested by USER: gemini-3-pro-image-preview
                 model: GeminiModel.IMAGE_GEN
             });
 
@@ -431,9 +574,12 @@ export const generateAdVariation = async (
                 cleanBase64 = seedImageBase64.split(',')[1];
             }
 
+            // Google Imagen 3 via Gemini API supports aspectRatio via generationConfig or prompt text
+            // SDK typed definition might vary, easiest is prompt instruction for now unless we update type defs
+            // Verified: generationConfig has aspectRatio field in recent versions.
             const result = await model.generateContent([
-                prompt,
-                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } } // Google Image gen (Imagen 3) supports image-to-image prompting
+                prompt + `\nEnsure Aspect Ratio is ${settings.preferredRatio || '1:1'}.`,
+                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
             ]);
 
             const response = await result.response;
@@ -453,8 +599,8 @@ export const generateAdVariation = async (
 
             const modelId = serviceConfig.modelId || 'seedream-3.0-text-to-image';
 
-            // Call Kie.ai Generation
-            const image = await callKieImageGen(apiKey, modelId, prompt);
+            // Pass size to Kie
+            const image = await callKieImageGen(apiKey, modelId, prompt, undefined, size);
             return { image, prompt };
 
         } else if (serviceConfig.provider === 'openRouter') {
@@ -465,7 +611,9 @@ export const generateAdVariation = async (
             const modelToUse = serviceConfig.modelId || 'openai/dall-e-3';
 
             // NOTE: Standard Chat Completions vs Image Generation
-            const result = await callOpenRouter(apiKey, modelToUse, prompt);
+            // OpenRouter handles specialized image params via model-specific routing often.
+            // DALL-E 3 supports size.
+            const result = await callOpenRouter(apiKey, modelToUse, prompt + `\nGenerate with Aspect Ratio ${size}.`);
 
             // Check for markdown image format ![...](url)
             const match = result.match(/\!\[.*?\]\((.*?)\)/);

@@ -5,6 +5,8 @@ import { CONFIG } from '../config';
 const STORAGE_KEY = 'adgenie_settings_v1';
 
 const DEFAULT_SETTINGS: SettingsState = {
+    theme: 'light',
+    notifications: true,
     apiKeys: {
         google: CONFIG.GEMINI_API_KEY,
         kie: '',
@@ -14,8 +16,8 @@ const DEFAULT_SETTINGS: SettingsState = {
         analysis: { provider: 'google', isEnabled: true },
         vision: { provider: 'google', isEnabled: true },
         imageGeneration: { provider: 'google', isEnabled: true },
-        video: { provider: 'google', isEnabled: true },
     },
+    preferredRatio: '1:1', // Default Square
     openRouterModels: [],
 };
 

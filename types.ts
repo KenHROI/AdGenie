@@ -70,7 +70,11 @@ export interface ServiceConfig {
   isEnabled: boolean;
 }
 
+export type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3';
+
 export interface SettingsState {
+  theme: 'light' | 'dark';
+  notifications: boolean;
   apiKeys: {
     google: string;
     kie: string;
@@ -80,8 +84,8 @@ export interface SettingsState {
     analysis: ServiceConfig;      // Text/Ad Copy analysis
     imageGeneration: ServiceConfig;
     vision: ServiceConfig;        // Image description
-    video: ServiceConfig;         // Video analysis
   };
+  preferredRatio: AspectRatio; // New field
   openRouterModels: Array<{
     id: string;
     name: string;
