@@ -292,7 +292,7 @@ export const extractAdComponents = async (settings: SettingsState, adCopy: strin
 // Imported dynamically to avoid circular dependency if possible, or pass in.
 // But we need getEnrichedTemplates. 
 // Ideally passed as argument, but for now let's modify signature or fetch inside.
-import { getEnrichedTemplates } from './templateService';
+
 
 export const analyzeAdCopyForStyles = async (
     settings: SettingsState,
@@ -307,11 +307,18 @@ export const analyzeAdCopyForStyles = async (
     // Step 0: Get Rich Metadata (DB or Cache) - Prefer DB if availableTemplates not passed
     let templatesToAnalyze = availableTemplates;
     if (!templatesToAnalyze) {
-        templatesToAnalyze = await getEnrichedTemplates();
+        try {
+            const { getEnrichedTemplates } = await import('./templateService');
+            templatesToAnalyze = await getEnrichedTemplates();
+        } catch (e) {
+            console.warn("Could not load enhanced templates, using defaults", e);
+            templatesToAnalyze = [];
+        }
     }
 
     // Fallback if DB empty/failed -> Use subset of constants
     if (!templatesToAnalyze || templatesToAnalyze.length === 0) {
+        const { AD_LIBRARY } = await import('../constants'); // Safe dynamic import for constants too if needed
         templatesToAnalyze = AD_LIBRARY.slice(0, 50);
     }
 

@@ -496,12 +496,14 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                     try {
                                         const { scanLibraryIterator } = await import('../services/templateService');
                                         const { AD_LIBRARY } = await import('../constants');
+                                        // Dynamically import aiService to get the function, avoiding cycle if any (though here it's fine)
+                                        const { describeImageStyle } = await import('../services/aiService');
 
                                         let successCount = 0;
                                         let errorCount = 0;
 
                                         // Process in chunks or one by one
-                                        for await (const result of scanLibraryIterator(settings, AD_LIBRARY)) {
+                                        for await (const result of scanLibraryIterator(settings, AD_LIBRARY, describeImageStyle)) {
                                             if (result.status === 'success') {
                                                 successCount++;
                                                 if (successCount % 5 === 0) showToast(`Processed ${successCount}/${AD_LIBRARY.length}`, "info");

@@ -1,17 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import { AdTemplate, Platform, UseCaseCategory, SettingsState } from '../types';
 import { AD_LIBRARY } from '../constants';
-import { describeImageStyle } from './aiService';
 
-// Initialize Supabase Client
+
+
+// Initialize Supabase Client Safely
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error("Missing Supabase Environmental Variables");
-}
+let supabase: any = null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (supabaseUrl && supabaseKey) {
+    try {
+        supabase = createClient(supabaseUrl, supabaseKey);
+    } catch (e) {
+        console.error("Failed to initialize Supabase client:", e);
+    }
+} else {
+    console.warn("Missing Supabase Env Vars - Template Intelligence disabled");
+}
 
 export interface TemplateMetadata {
     id: string;
@@ -27,6 +34,7 @@ export interface TemplateMetadata {
 
 // 1. Fetch All Templates (Merged with Constants)
 export const getEnrichedTemplates = async (): Promise<AdTemplate[]> => {
+    if (!supabase) return AD_LIBRARY; // Fallback if no specific config
     try {
         const { data, error } = await supabase
             .from('template_metadata')
@@ -76,9 +84,13 @@ export const getEnrichedTemplates = async (): Promise<AdTemplate[]> => {
 };
 
 // 2. Scan & Enrich Single Template
-export const enrichTemplate = async (settings: SettingsState, template: AdTemplate): Promise<AdTemplate> => {
+export const enrichTemplate = async (
+    settings: SettingsState,
+    template: AdTemplate,
+    analyzeFn: (s: SettingsState, img: string) => Promise<Partial<AdTemplate>>
+): Promise<AdTemplate> => {
     // 1. Analyze
-    const analysis = await describeImageStyle(settings, template.imageUrl);
+    const analysis = await analyzeFn(settings, template.imageUrl);
 
     // 2. Merge
     const enriched: AdTemplate = {
@@ -91,31 +103,37 @@ export const enrichTemplate = async (settings: SettingsState, template: AdTempla
     };
 
     // 3. Save to DB
-    const row: TemplateMetadata = {
-        id: enriched.id,
-        name: enriched.name,
-        description: enriched.description,
-        visual_analysis: enriched.visual_analysis || "",
-        tags: enriched.tags,
-        category: enriched.category as UseCaseCategory,
-        platform_origin: enriched.platformOrigin as Platform,
-        image_url: enriched.imageUrl
-    };
+    if (supabase) {
+        const row: TemplateMetadata = {
+            id: enriched.id,
+            name: enriched.name,
+            description: enriched.description,
+            visual_analysis: enriched.visual_analysis || "",
+            tags: enriched.tags,
+            category: enriched.category as UseCaseCategory,
+            platform_origin: enriched.platformOrigin as Platform,
+            image_url: enriched.imageUrl
+        };
 
-    const { error } = await supabase
-        .from('template_metadata')
-        .upsert(row);
+        const { error } = await supabase
+            .from('template_metadata')
+            .upsert(row);
 
-    if (error) throw new Error(`Supabase Upsert Error: ${error.message}`);
+        if (error) throw new Error(`Supabase Upsert Error: ${error.message}`);
+    }
 
     return enriched;
 };
 
 // 3. Batch Scan (Async Iterator)
-export async function* scanLibraryIterator(settings: SettingsState, templates: AdTemplate[]) {
+export async function* scanLibraryIterator(
+    settings: SettingsState,
+    templates: AdTemplate[],
+    analyzeFn: (s: SettingsState, img: string) => Promise<Partial<AdTemplate>>
+) {
     for (const tmpl of templates) {
         try {
-            const result = await enrichTemplate(settings, tmpl);
+            const result = await enrichTemplate(settings, tmpl, analyzeFn);
             yield { status: 'success', template: result };
         } catch (e: any) {
             yield { status: 'error', id: tmpl.id, error: e.message };
