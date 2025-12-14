@@ -89,12 +89,35 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
             const models = await fetchOpenRouterModels(settings.apiKeys.openRouter);
             if (models.length > 0) {
                 updateSettings({ openRouterModels: models });
-                showToast(`Fetched ${models.length} models`, "success");
+                showToast(`Fetched ${models.length} OpenRouter models`, "success");
             } else {
-                showToast("No models found or key invalid", "error");
+                showToast("No OpenRouter models found", "error");
             }
         } catch (e) {
-            showToast("Failed to fetch models", "error");
+            showToast("Failed to fetch OpenRouter models", "error");
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
+
+    const handleRefreshKieModels = async () => {
+        if (!settings.apiKeys.kie) {
+            showToast("Enter Kie.ai Key first", "error");
+            return;
+        }
+        setIsLoadingModels(true);
+        try {
+            // Import dynamically to avoid circular dep issues if any, or just use imported
+            const { fetchKieModels } = await import('../services/aiService');
+            const models = await fetchKieModels(settings.apiKeys.kie);
+            if (models.length > 0) {
+                updateSettings({ kieModels: models });
+                showToast(`Fetched ${models.length} Kie.ai models`, "success");
+            } else {
+                showToast("No Kie.ai models found", "error");
+            }
+        } catch (e) {
+            showToast("Failed to fetch Kie.ai models", "error");
         } finally {
             setIsLoadingModels(false);
         }
@@ -450,14 +473,24 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 <section className="mb-12 border-b border-gray-100 pb-12">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-gray-900">API Configuration</h3>
-                        {settings.apiKeys.openRouter && (
-                            <button
-                                onClick={handleRefreshModels}
-                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                            >
-                                {isLoadingModels ? 'Refreshing...' : 'Refresh OpenRouter Models'}
-                            </button>
-                        )}
+                        <div className="flex gap-4">
+                            {settings.apiKeys.kie && (
+                                <button
+                                    onClick={handleRefreshKieModels}
+                                    className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
+                                >
+                                    {isLoadingModels ? 'Loading...' : 'Refresh Kie.ai Models'}
+                                </button>
+                            )}
+                            {settings.apiKeys.openRouter && (
+                                <button
+                                    onClick={handleRefreshModels}
+                                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                                >
+                                    {isLoadingModels ? 'Loading...' : 'Refresh OpenRouter Models'}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -618,10 +651,16 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                                 <option key={m.id} value={`google|${m.id}`}>{m.name}</option>
                                             ))}
                                         </optgroup>
-                                        <optgroup label="Kie.ai (Popular)">
-                                            {KIE_IMAGE_MODELS.slice(0, 5).map(m => (
-                                                <option key={m.id} value={`kie|${m.id}`}>{m.name}</option>
-                                            ))}
+                                        <optgroup label="Kie.ai (Dynamic)">
+                                            {(settings.kieModels && settings.kieModels.length > 0) ? (
+                                                settings.kieModels.filter(m => m.category === 'image').map(m => (
+                                                    <option key={m.id} value={`kie|${m.id}`}>{m.name}</option>
+                                                ))
+                                            ) : (
+                                                KIE_IMAGE_MODELS.map(m => (
+                                                    <option key={m.id} value={`kie|${m.id}`}>{m.name}</option>
+                                                ))
+                                            )}
                                         </optgroup>
                                         <optgroup label="OpenAI (via OpenRouter)">
                                             <option value="openRouter|openai/dall-e-3">DALL-E 3</option>

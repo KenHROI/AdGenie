@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: SettingsState = {
         imageGeneration: { provider: 'google', isEnabled: true },
     },
     openRouterModels: [],
+    kieModels: [],
 };
 
 interface SettingsContextType {

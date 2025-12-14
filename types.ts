@@ -95,4 +95,9 @@ export interface SettingsState {
       isImageGen?: boolean;
     };
   }>; // Cache available models
+  kieModels: Array<{
+    id: string;
+    name: string;
+    category?: 'image' | 'video' | 'audio' | 'text';
+  }>;
 }

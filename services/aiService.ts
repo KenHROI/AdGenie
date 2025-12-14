@@ -116,6 +116,37 @@ const callOpenRouter = async (apiKey: string, model: string, prompt: string, ima
     return data.choices[0]?.message?.content || "";
 };
 
+export const fetchKieModels = async (apiKey: string): Promise<Array<{ id: string; name: string; category?: 'image' | 'video' | 'audio' | 'text' }>> => {
+    try {
+        const response = await fetch("https://api.kie.ai/v1/models", {
+            headers: { "Authorization": `Bearer ${apiKey}` }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch Kie models");
+
+        const json = await response.json();
+        // Assume standard OpenAI-like list format: { data: [{ id: "...", ... }] }
+        if (!json.data || !Array.isArray(json.data)) return [];
+
+        return json.data.map((m: any) => ({
+            id: m.id,
+            name: m.id, // Kie often uses ID as name, or check if 'owned_by' or 'object' gives clues
+            category: guessKieCategory(m.id)
+        })).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+    } catch (e) {
+        console.error("Failed to fetch Kie models", e);
+        return [];
+    }
+};
+
+const guessKieCategory = (id: string): 'image' | 'video' | 'audio' | 'text' => {
+    if (id.includes('banana') || id.includes('midjourney') || id.includes('flux') || id.includes('image') || id.includes('vision') || id.includes('dall')) return 'image';
+    if (id.includes('veo') || id.includes('runway') || id.includes('kling') || id.includes('video') || id.includes('luma')) return 'video';
+    if (id.includes('suno') || id.includes('audio') || id.includes('music')) return 'audio';
+    return 'text';
+};
+
 const callKieChat = async (apiKey: string, model: string, prompt: string, image?: string) => {
     const body: any = {
         model: model || 'gpt-4o', // Default text model

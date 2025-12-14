@@ -1465,28 +1465,28 @@ export const DEFAULT_BRAND_COLORS = ['#3B82F6', '#10B981', '#F59E0B'];
 
 // Google Gemini Model Definitions
 export const GOOGLE_TEXT_MODELS = [
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Latest)' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Fast)' },
-  { id: 'gemini-1.5-pro-002', name: 'Gemini 1.5 Pro-002 (Stable)' },
-  { id: 'gemini-1.5-flash-002', name: 'Gemini 1.5 Flash-002 (Stable)' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Preview)' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite' },
 ];
 
 export const GOOGLE_VISION_MODELS = [
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Multimodal)' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Multimodal)' },
-  { id: 'gemini-1.5-pro-002', name: 'Gemini 1.5 Pro-002 (Best Vision)' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Preview)' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
 ];
 
 export const GOOGLE_IMAGE_MODELS = [
-  { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Preview)' }, // New
-  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)' },
+  { id: 'nano-banana-pro', name: 'Nano Banana Pro (Imagen 3)' }, // Google Consumer Brand via Kie/Proxy or direct if avail
   { id: 'imagen-3.0-generate-001', name: 'Imagen 3' },
 ];
 
-// Kie.ai Helper Lists (Simplified subset)
+// Kie.ai Helper Lists (Initial Fallback, will be dynamic)
 export const KIE_IMAGE_MODELS = [
-  { id: 'flux-pro-1.1-ultra', name: 'Flux Pro 1.1 Ultra', endpoint: '/v1/images/generations' },
-  { id: 'flux-dev', name: 'Flux Dev', endpoint: '/v1/images/generations' },
-  { id: 'midjourney-v6', name: 'Midjourney v6', endpoint: '/v1/images/generations' }, // Placeholder if supported
-  { id: 'ideogram-v2', name: 'Ideogram v2', endpoint: '/v1/images/generations' },
+  { id: 'nano-banana-pro', name: 'Nano Banana Pro', endpoint: '/v1/images/generations' },
+  { id: 'midjourney-v6.1', name: 'Midjourney v6.1', endpoint: '/v1/images/generations' },
+  { id: 'flux-kontext', name: 'Flux Kontext', endpoint: '/v1/images/generations' },
+  { id: 'gpt-4o-image', name: 'GPT-4o Vision (Image)', endpoint: '/v1/images/generations' },
+  { id: 'z-image', name: 'Z-Image', endpoint: '/v1/images/generations' },
 ];
