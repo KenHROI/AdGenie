@@ -360,8 +360,12 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
             if (!apiKey) throw new Error("Google API Key missing");
 
             const genAI = new GoogleGenerativeAI(apiKey);
+            // Use selected model ID or fallback to 1.5 Pro (which is stable)
+            // LATEST STABLE AS OF DEC 2024: gemini-1.5-pro-002 or gemini-1.5-pro
+            const modelId = serviceConfig.modelId || 'gemini-1.5-pro';
+
             const model = genAI.getGenerativeModel({
-                model: GeminiModel.ANALYSIS,
+                model: modelId,
                 generationConfig: { responseMimeType: "application/json" }
             });
 
@@ -388,7 +392,8 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
 
     } catch (error) {
         console.error("Error describing image:", error);
-        return { name: "Custom Upload", description: "User uploaded template", tags: ["custom"] };
+        // CRITICAL: Re-throw error so UI can show it to the user
+        throw error;
     }
 };
 // --- New Layout Analysis & Copy Fitting Functions ---

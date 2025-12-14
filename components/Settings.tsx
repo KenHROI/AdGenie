@@ -192,8 +192,14 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     if (result && result.name) {
                         aiData = result;
                     }
-                } catch (aiError) {
-                    console.warn(`AI analysis failed for ${file.name}, using defaults`);
+                } catch (aiError: any) {
+                    console.warn(`AI analysis failed for ${file.name}:`, aiError);
+                    if (isMounted.current) {
+                        setErrorLogs(prev => [...prev, `${file.name}: ${aiError.message}`]);
+                        setScanStatus && setScanStatus(`Analysis failed: ${aiError.message}`);
+                        // Don't swallow error completely, let the user know, but fall back to defaults so upload succeeds
+                        showToast(`Analysis failed for ${file.name}: ${aiError.message}`, "error");
+                    }
                 }
 
                 // Small delay to prevent rate limiting

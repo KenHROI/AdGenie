@@ -1465,17 +1465,16 @@ export const DEFAULT_BRAND_COLORS = ['#3B82F6', '#10B981', '#F59E0B'];
 
 // Google Gemini Model Definitions
 export const GOOGLE_TEXT_MODELS = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Production)' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Fast)' },
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite (Efficient)' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Legacy)' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Legacy)' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Latest)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Fast)' },
+  { id: 'gemini-1.5-pro-002', name: 'Gemini 1.5 Pro-002 (Stable)' },
+  { id: 'gemini-1.5-flash-002', name: 'Gemini 1.5 Flash-002 (Stable)' },
 ];
 
 export const GOOGLE_VISION_MODELS = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Multimodal)' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Multimodal)' },
-  // Gemini models are inherently multimodal, so these overlap with text models
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Multimodal)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Multimodal)' },
+  { id: 'gemini-1.5-pro-002', name: 'Gemini 1.5 Pro-002 (Best Vision)' },
 ];
 
 export const GOOGLE_IMAGE_MODELS = [
