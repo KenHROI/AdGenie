@@ -47,7 +47,7 @@ const S3Icon = () => (
 );
 
 const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading }) => {
-  const [formData, setFormData] = useState<BrandProfile>(initialData);
+  const [formData, setFormData] = useState<BrandProfile>({ ...initialData, targetPlatform: 'meta' });
   const [newColor, setNewColor] = useState('#000000');
   const [tokenClient, setTokenClient] = useState<any>(null);
   const [pickerInited, setPickerInited] = useState(false);
@@ -376,6 +376,32 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
         </div>
 
         <div className="pt-6 border-t border-dashed border-gray-200">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Target Platform</label>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: 'meta', label: 'Meta (FB/IG)', desc: 'Visuals first, no visuals buttons' },
+              { id: 'google', label: 'Google Display', desc: 'Expert CTA & Value Props' },
+              { id: 'linkedin', label: 'LinkedIn', desc: 'Professional & Data-driven' },
+              { id: 'native', label: 'Native Ads', desc: 'Editorial style' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, targetPlatform: opt.id as any }))}
+                className={`p-3 rounded-xl border text-left transition-all ${formData.targetPlatform === opt.id
+                  ? 'border-black bg-gray-50 ring-1 ring-black'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+              >
+                <div className="text-xs font-bold text-gray-900">{opt.label}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+          {!formData.targetPlatform && <p className="text-[10px] text-orange-500 mt-1">Please select a platform.</p>}
+        </div>
+
+        <div className="pt-6 border-t border-dashed border-gray-200">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Output Dimensions</label>
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -389,8 +415,8 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, aspectRatio: opt.id as any }))}
                 className={`p-3 rounded-xl border text-left transition-all ${formData.aspectRatio === opt.id
-                    ? 'border-black bg-gray-50 ring-1 ring-black'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-black bg-gray-50 ring-1 ring-black'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
               >
                 <div className="text-xs font-bold text-gray-900">{opt.label}</div>

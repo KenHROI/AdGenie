@@ -570,6 +570,42 @@ export const generateAdVariation = async (
         copyInstructions = `Ad Copy: "${brand.adCopy.slice(0, 300)}"`;
     }
 
+    const platform = brand.targetPlatform || 'meta';
+
+    let platformRules = "";
+    if (platform === 'meta') {
+        platformRules = `
+        PLATFORM RULES (META/INSTAGRAM):
+        - DO NOT add "Click Here" buttons or fake UI elements. The platform adds these.
+        - Keep text minimal (<20% of image area).
+        - Focus on visual storytelling and emotional hooks.
+        - Use a lifestyle/UGC aesthetic if appropriate.
+        `;
+    } else if (platform === 'google') {
+        platformRules = `
+        PLATFORM RULES (GOOGLE DISPLAY NETWORK):
+        - CRITICAL: You MUST include a clear, high-contrast CTA button (e.g., "Learn More", "Shop Now") in the bottom-right or relevant area.
+        - Ensure the Value Proposition is readable and prominent.
+        - Include the logo clearly (top-left preferred).
+        - Design must look clickable and actionable.
+        `;
+    } else if (platform === 'linkedin') {
+        platformRules = `
+        PLATFORM RULES (LINKEDIN):
+        - Use professional, corporate imagery (high-quality stock or office vibes).
+        - Clean, modern typography (Sans Serif).
+        - Include data visualization or stats if the copy mentions numbers.
+        - NO fake buttons (platform handles CTA).
+        `;
+    } else if (platform === 'native') {
+        platformRules = `
+        PLATFORM RULES (NATIVE ADS):
+        - Make it look like editorial content, not an ad.
+        - No text overlays or logos on the image itself.
+        - Use candid, realistic photography.
+        `;
+    }
+
     const prompt = `
     Create a professional, high-resolution advertisement image based on the provided reference layout.
     ${copyInstructions}
@@ -577,11 +613,14 @@ export const generateAdVariation = async (
     ${typo}
     Brand Colors: ${colors}.
     Style Direction: ${templateName}.
+    Target Platform: ${platform.toUpperCase()}.
+
+    ${platformRules}
     
     CRITICAL:
-    1. PRESERVE THE LAYOUT OF THE REFERENCE IMAGE EXACTLY.
+    1. PRESERVE THE LAYOUT OF THE REFERENCE IMAGE EXACTLY (unless platform rules require adding a button).
     2. REPLACE TEXT WITH THE PROVIDED STRINGS.
-    3. DO NOT CHANGE THE POSITION OF ELEMENTS.
+    3. DO NOT CHANGE THE POSITION OF ELEMENTS (unless adapting for Google CTA).
     4. ENSURE TEXT CONTRAST AND READABILITY.
   `;
 

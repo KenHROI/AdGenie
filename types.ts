@@ -1,4 +1,6 @@
 
+export type Platform = 'meta' | 'google' | 'linkedin' | 'native';
+
 export interface BrandProfile {
   colors: string[];
   logo: string | null; // Base64
@@ -10,6 +12,7 @@ export interface BrandProfile {
   driveFolderName?: string;
   driveAccessToken?: string;
   aspectRatio: AspectRatio; // Moved from Settings
+  targetPlatform?: Platform; // New field
 }
 
 export interface AdTemplate {
@@ -20,6 +23,7 @@ export interface AdTemplate {
   tags: string[];
   visual_analysis?: string; // Creative Director's deep dive
   category?: UseCaseCategory;
+  platformOrigin?: Platform; // Metadata for smart matching
 }
 
 export enum UseCaseCategory {
