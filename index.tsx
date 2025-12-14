@@ -8,8 +8,14 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+console.log("AdGenie: Mounting React Root...");
+try {
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+  console.log("AdGenie: Render called successfully.");
+} catch (e) {
+  console.error("AdGenie: Fatal Render Error", e);
+}
