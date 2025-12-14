@@ -626,33 +626,6 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
                         </div>
                     </div>
-
-                    {/* Output Dimensions */}
-                    <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm mt-8">
-                        <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            <span className="text-xl">📐</span> Output Dimensions
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            {[
-                                { id: '1:1', label: 'Square (1:1)', desc: 'Instagram / LinkedIn Feed', ratio: '1:1' },
-                                { id: '9:16', label: 'Portrait (9:16)', desc: 'Stories / Reels / TikTok', ratio: '9:16' },
-                                { id: '16:9', label: 'Landscape (16:9)', desc: 'YouTube / Website', ratio: '16:9' },
-                                { id: '4:3', label: 'Classic (4:3)', desc: 'Standard Display', ratio: '4:3' },
-                            ].map((opt) => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => updateSettings({ preferredRatio: opt.ratio as any })}
-                                    className={`p-4 rounded-xl border text-left transition-all ${settings.preferredRatio === opt.ratio
-                                        ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
-                                        : 'border-gray-200 bg-white hover:border-gray-300'
-                                        }`}
-                                >
-                                    <div className="font-bold text-gray-900">{opt.label}</div>
-                                    <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </section>
 
                 {/* Library Management Section */}

@@ -21,6 +21,7 @@ const INITIAL_BRAND_DATA: BrandProfile = {
     brandVoice: '',
     typography: '',
     librarySource: 'default',
+    aspectRatio: '1:1',
 };
 
 const MainApp: React.FC = () => {

@@ -9,6 +9,7 @@ export interface BrandProfile {
   driveFolderId?: string;
   driveFolderName?: string;
   driveAccessToken?: string;
+  aspectRatio: AspectRatio; // Moved from Settings
 }
 
 export interface AdTemplate {
@@ -85,7 +86,7 @@ export interface SettingsState {
     imageGeneration: ServiceConfig;
     vision: ServiceConfig;        // Image description
   };
-  preferredRatio: AspectRatio; // New field
+  // preferredRatio field removed
   openRouterModels: Array<{
     id: string;
     name: string;

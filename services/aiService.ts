@@ -556,7 +556,7 @@ export const generateAdVariation = async (
         '16:9': '1792x1024',
         '4:3': '1024x768'
     };
-    const size = ratioMap[settings.preferredRatio || '1:1'];
+    const size = ratioMap[brand.aspectRatio || '1:1'];
 
     try {
         if (serviceConfig.provider === 'google') {
@@ -575,10 +575,8 @@ export const generateAdVariation = async (
             }
 
             // Google Imagen 3 via Gemini API supports aspectRatio via generationConfig or prompt text
-            // SDK typed definition might vary, easiest is prompt instruction for now unless we update type defs
-            // Verified: generationConfig has aspectRatio field in recent versions.
             const result = await model.generateContent([
-                prompt + `\nEnsure Aspect Ratio is ${settings.preferredRatio || '1:1'}.`,
+                prompt + `\nEnsure Aspect Ratio is ${brand.aspectRatio || '1:1'}.`,
                 { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
             ]);
 

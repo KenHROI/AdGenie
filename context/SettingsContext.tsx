@@ -17,7 +17,6 @@ const DEFAULT_SETTINGS: SettingsState = {
         vision: { provider: 'google', isEnabled: true },
         imageGeneration: { provider: 'google', isEnabled: true },
     },
-    preferredRatio: '1:1', // Default Square
     openRouterModels: [],
 };
 

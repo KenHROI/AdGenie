@@ -280,8 +280,8 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
               type="button"
               onClick={handleSetDefault}
               className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${formData.librarySource === 'default'
-                  ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-200 shadow-sm'
-                  : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-200 shadow-sm'
+                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <DefaultIcon />
@@ -293,8 +293,8 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
               type="button"
               onClick={handleConnectDrive}
               className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${formData.librarySource === 'drive'
-                  ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200 shadow-sm'
-                  : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200 shadow-sm'
+                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
             >
               {isValidatingDrive ? (
@@ -315,8 +315,8 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
               type="button"
               onClick={handleConnectS3}
               className={`relative overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all duration-300 ${s3Status === 'connected'
-                  ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200 shadow-sm'
-                  : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200 shadow-sm'
+                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
             >
               {s3Status === 'connecting' ? (
@@ -372,6 +372,31 @@ const InputForm: React.FC<InputFormProps> = ({ initialData, onSubmit, isLoading 
                 </label>
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="pt-6 border-t border-dashed border-gray-200">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Output Dimensions</label>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: '1:1', label: 'Square', desc: 'Feed (1:1)' },
+              { id: '9:16', label: 'Portrait', desc: 'Stories (9:16)' },
+              { id: '16:9', label: 'Landscape', desc: 'YouTube (16:9)' },
+              { id: '4:3', label: 'Classic', desc: 'Standard (4:3)' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, aspectRatio: opt.id as any }))}
+                className={`p-3 rounded-xl border text-left transition-all ${formData.aspectRatio === opt.id
+                    ? 'border-black bg-gray-50 ring-1 ring-black'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+              >
+                <div className="text-xs font-bold text-gray-900">{opt.label}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
 
