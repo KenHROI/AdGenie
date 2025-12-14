@@ -143,6 +143,24 @@ const MainApp: React.FC = () => {
         setDefaultLibrary(prev => prev.map(t => t.id === updated.id ? updated : t));
     }, []);
 
+    const handleResetLibrary = useCallback(async () => {
+        if (!window.confirm("This will reset your library to the default 145 templates and remove any custom uploads. Continue?")) {
+            return;
+        }
+        try {
+            await clearLibrary(); // Clear storage
+            setDefaultLibrary(AD_LIBRARY); // Reset state to constants
+            // Optionally force save to storage if needed, but getLibrary will re-seed on next load if empty
+            // To be safe, we might want to manually save these 145 to storage, but that's heavy.
+            // Better: clear storage, and next getLibrary() call will seed.
+            // But we want immediate UI update.
+            showToast("Library reset to defaults (145 items)", "success");
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to reset library", "error");
+        }
+    }, [showToast]);
+
     // Determine what to render in the main area
     const renderContent = () => {
         if (currentStep === AppStep.SETTINGS) {
@@ -152,7 +170,9 @@ const MainApp: React.FC = () => {
                         templates={defaultLibrary}
                         onAddTemplate={handleAddTemplate}
                         onRemoveTemplate={handleRemoveTemplate}
+
                         onClearLibrary={handleClearLibrary}
+                        onResetLibrary={handleResetLibrary}
                         onUpdateTemplate={handleUpdateTemplate}
                     />
                 </div>

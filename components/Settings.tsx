@@ -13,6 +13,7 @@ interface SettingsProps {
     onAddTemplate: (template: AdTemplate) => void;
     onRemoveTemplate: (id: string) => void;
     onClearLibrary: () => void;
+    onResetLibrary: () => void;
     onUpdateTemplate: (template: AdTemplate) => void;
 }
 // Utility to resize and compress images before processing
@@ -60,7 +61,7 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File
     });
 };
 
-const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary, onUpdateTemplate }) => {
+const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary, onResetLibrary, onUpdateTemplate }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [scanStatus, setScanStatus] = useState<string>('');
@@ -775,6 +776,12 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                 {selectedLibIds.size === templates.length ? 'Deselect All' : 'Select All'}
                             </button>
 
+                            <button
+                                onClick={onResetLibrary}
+                                className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200 transition-colors"
+                            >
+                                Reset to Defaults
+                            </button>
                             <button
                                 onClick={onClearLibrary}
                                 className="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md border border-red-200 transition-colors"
