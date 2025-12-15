@@ -270,6 +270,10 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         showToast("Image downloading...", 'success');
     };
 
+    const handlePromptChange = (id: string, val: string) => {
+        setResults(prev => prev.map(r => r.id === id ? { ...r, promptUsed: val } : r));
+    };
+
     const handleDownloadAll = async () => {
         if (results.length === 0) return;
 
@@ -449,16 +453,18 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Prompt Used</label>
                                                 <div className="flex items-center gap-3">
                                                     <textarea
-                                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20 disabled:bg-gray-50 disabled:text-gray-400"
                                                         placeholder="Prompt will appear here..."
-                                                        defaultValue={img.promptUsed}
+                                                        value={img.promptUsed}
+                                                        onChange={(e) => handlePromptChange(img.id, e.target.value)}
+                                                        disabled={img.status === 'pending'}
                                                     />
                                                 </div>
                                                 <div className="flex justify-end gap-2">
                                                     <button
                                                         onClick={(e) => {
-                                                            const input = e.currentTarget.parentElement?.previousElementSibling?.querySelector('textarea') as HTMLTextAreaElement;
-                                                            if (input) handleRespin(img, input.value);
+                                                            e.stopPropagation();
+                                                            handleRespin(img, img.promptUsed);
                                                         }}
                                                         className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         disabled={isGenerating || img.status === 'pending'}
