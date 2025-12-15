@@ -1,11 +1,20 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { BrandProfile, AdTemplate, GeminiModel, SettingsState } from "../types";
+import { BrandProfile, AdTemplate, GeminiModel, SettingsState, TextZone } from "../types";
 import { AD_LIBRARY, KIE_IMAGE_MODELS } from "../constants";
 
 // Kie.ai Helper
 const resolveKieEndpoint = (modelId: string): string => {
     const known = KIE_IMAGE_MODELS.find(m => m.id === modelId);
     return known?.endpoint || '/api/v1/image/generate'; // Default fallback
+};
+
+const extractJSON = (str: string): string => {
+    let clean = str.replace(/```json/g, '').replace(/```/g, '').trim();
+    const arrayMatch = clean.match(/\[[\s\S]*\]/);
+    if (arrayMatch) return arrayMatch[0];
+    const objectMatch = clean.match(/\{[\s\S]*\}/);
+    if (objectMatch) return objectMatch[0];
+    return clean;
 };
 
 // OpenRouter Interfaces
@@ -294,142 +303,121 @@ export const extractAdComponents = async (settings: SettingsState, adCopy: strin
 // Ideally passed as argument, but for now let's modify signature or fetch inside.
 
 
+
+
+
+// Debug Helper
+function logToScreen(msg: string) {
+    try {
+        let el = document.getElementById('debug-console');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'debug-console';
+            el.style.position = 'fixed';
+            el.style.top = '0';
+            el.style.right = '0';
+            el.style.zIndex = '9999';
+            el.style.background = 'rgba(255, 255, 255, 0.9)';
+            el.style.color = 'red';
+            el.style.border = '2px solid black';
+            el.style.padding = '10px';
+            el.style.maxWidth = '400px';
+            el.style.maxHeight = '100vh';
+            el.style.overflow = 'auto';
+            el.style.fontSize = '12px';
+            document.body.appendChild(el);
+        }
+        el.innerText += msg + '\n----------------\n';
+    } catch (e) { console.error(e); }
+}
+
 export const analyzeAdCopyForStyles = async (
     settings: SettingsState,
     adCopy: string,
-    // Optional override, otherwise fetches from DB
-    availableTemplates?: AdTemplate[]
+    templatesToAnalyze: AdTemplate[]
 ): Promise<string[]> => {
-    if (!adCopy || adCopy.length < 5) return [];
-
-    const serviceConfig = settings.services.analysis;
-
-    // Step 0: Get Rich Metadata (DB or Cache) - Prefer DB if availableTemplates not passed
-    let templatesToAnalyze = availableTemplates;
-    if (!templatesToAnalyze) {
-        try {
-            const { getEnrichedTemplates } = await import('./templateService');
-            templatesToAnalyze = await getEnrichedTemplates();
-        } catch (e) {
-            console.warn("Could not load enhanced templates, using defaults", e);
-            templatesToAnalyze = [];
-        }
-    }
-
-    // Fallback if DB empty/failed -> Use subset of constants
-    if (!templatesToAnalyze || templatesToAnalyze.length === 0) {
-        const { AD_LIBRARY } = await import('../constants'); // Safe dynamic import for constants too if needed
-        templatesToAnalyze = AD_LIBRARY.slice(0, 50);
-    }
-
-    // --- STAGE 1: CLASSIFY THE COPY ---
-    const classificationPrompt = `
-    Analyze this ad copy deeply.
-    Copy: "${adCopy}"
-
-    Determine the following strategic attributes:
-    1. Industry: (e.g., "Legal", "Ecommerce", "SaaS", "Local Service")
-    2. Tone: (e.g., "Urgent", "Professional", "Playful", "Trust-focused")
-    3. Goal: (e.g., "Lead Gen", "Sales", "Awareness")
-    4. Key Visual Needs: (e.g., "Needs trust badges", "Needs before/after comparison", "Needs data visualization", "Needs bold typography")
-
-    Return JSON:
-    {
-      "industry": "...",
-      "tone": "...",
-      "goal": "...",
-      "visual_needs": "..."
-    }
-    `;
-
-    let classification: any = {};
-    try {
-        let jsonStr = "{}";
-        if (serviceConfig.provider === 'google') {
-            const apiKey = settings.apiKeys.google;
-            const genAI = new GoogleGenerativeAI(apiKey!);
-            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
-            const res = await model.generateContent(classificationPrompt);
-            jsonStr = res.response.text();
-        } else if (serviceConfig.provider === 'kie') {
-            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', classificationPrompt);
-        } else if (serviceConfig.provider === 'openRouter') {
-            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', classificationPrompt);
-        }
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-        classification = JSON.parse(jsonStr);
-    } catch (e) {
-        console.warn("Classification failed", e);
-        classification = { industry: "General", tone: "Professional", goal: "Conversion", visual_needs: "High contrast" };
-    }
-
-    // --- STAGE 2: SEMANTIC MATCHING ---
-    // Instead of passing all 145 templates to LLM (Context Limit/Cost), we filter/rank first OR pass rich metadata for top N.
-    // Let's allow the LLM to pick from a "Representative List" of rich metadata.
-
-    // Limit to 40 candidates to fit context window comfortably with rich descriptions
-    // Naive shuffle or random selection if too many? Or just take first 40 (assuming DB merge).
-    // Better: Filter by category if possible.
-
-    const candidates = templatesToAnalyze.slice(0, 40);
-
-    const templatesDescription = candidates.map(
-        (t) => `ID: ${t.id}
-Name: ${t.name}
-Visual Style: ${t.visual_analysis || t.description}
-Tags: ${t.tags.join(", ")}
-Platform: ${t.platformOrigin || 'meta'}
-`
-    ).join("\n---\n");
+    // 1. Prepare Templates Context
+    const templateContext = templatesToAnalyze.map(t =>
+        `- ID: "${t.id}"\n  Tags: ${t.tags.join(', ')}`
+    ).join('\n\n');
 
     const selectionPrompt = `
-    Task: Select exactly 3 Ad Templates that best match the strategy below.
+    Analyze the following Ad Copy: "${adCopy}"
 
-    STRATEGY:
-    - Industry: ${classification.industry}
-    - Tone: ${classification.tone}
-    - Goal: ${classification.goal}
-    - Visual Needs: ${classification.visual_needs}
+    Select the best 3 templates from the list below that match the vibe (e.g. corporate vs playful, minimal vs busy).
+    
+    Templates:
+    ${templateContext}
 
-    Available Templates:
-    ${templatesDescription}
-
-    Return the 3 IDs in a JSON array (e.g. ["id1", "id2", "id3"]). 
-    Prioritize templates where 'Visual Style' matches 'Visual Needs'.
-  `;
+    Return ONLY a JSON Array of strings with the 3 selected IDs.
+    Example: ["id1", "id2", "id3"]
+    `;
 
     try {
+        logToScreen("Starting Analysis...");
+        const serviceConfig = settings.services.analysis;
         let jsonStr = "[]";
 
         if (serviceConfig.provider === 'google') {
-            const apiKey = settings.apiKeys.google;
-            const genAI = new GoogleGenerativeAI(apiKey!);
-            const model = genAI.getGenerativeModel({
-                model: GeminiModel.ANALYSIS,
-                generationConfig: { responseMimeType: "application/json" }
-            });
+            try {
+                const apiKey = settings.apiKeys.google;
+                logToScreen("Using Google. Key exists? " + !!apiKey);
+                const genAI = new GoogleGenerativeAI(apiKey!);
+                const modelId = serviceConfig.modelId || GeminiModel.ANALYSIS;
+                logToScreen(`Using Model: ${modelId}`);
 
-            const result = await model.generateContent(selectionPrompt);
-            jsonStr = result.response.text();
+                const model = genAI.getGenerativeModel({
+                    model: modelId,
+                    generationConfig: { responseMimeType: "application/json" }
+                });
+
+                const result = await model.generateContent(selectionPrompt);
+                jsonStr = result.response.text();
+            } catch (googleError: any) {
+                logToScreen(`Google API Error: ${googleError.message}`);
+
+                // Fallback to OpenRouter if available
+                if (settings.apiKeys.openRouter) {
+                    logToScreen("Falling back to OpenRouter (google/gemini-2.0-flash-exp:free)...");
+                    jsonStr = await callOpenRouter(settings.apiKeys.openRouter, 'google/gemini-2.0-flash-exp:free', selectionPrompt);
+                } else {
+                    throw googleError;
+                }
+            }
 
         } else if (serviceConfig.provider === 'kie') {
+            logToScreen("Using Kie");
             const apiKey = settings.apiKeys.kie;
             jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', selectionPrompt);
         } else if (serviceConfig.provider === 'openRouter') {
+            logToScreen("Using OpenRouter");
             const apiKey = settings.apiKeys.openRouter;
             jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', selectionPrompt);
         }
 
-        // Clean Markdown if present
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Clean Markdown if present and robustly extract JSON
+        jsonStr = extractJSON(jsonStr);
+        logToScreen("Raw Response: " + jsonStr.substring(0, 100) + "...");
 
         const selectedIds = JSON.parse(jsonStr) as string[];
-        const validIds = selectedIds.filter(id => templatesToAnalyze!.some(t => t.id === id));
+        logToScreen("Parsed IDs: " + JSON.stringify(selectedIds));
 
-        return (validIds.length > 0) ? validIds : templatesToAnalyze.slice(0, 3).map(t => t.id);
+        const validIds = selectedIds.filter(id => templatesToAnalyze!.some(t => t.id === id));
+        logToScreen("Valid IDs: " + JSON.stringify(validIds));
+
+
+        if (validIds.length > 0) return validIds;
+
+        logToScreen("Fallback Triggered (No valid IDs)");
+        return templatesToAnalyze.slice(0, 3).map(t => t.id);
 
     } catch (error: any) {
         console.error("Error analyzing copy:", error);
+        logToScreen("ERROR: " + error.message);
+        if (error.response) {
+            const txt = await error.response.text().catch(() => "No text");
+            logToScreen("API Error Body: " + txt);
+        }
         return templatesToAnalyze.slice(0, 3).map(t => t.id);
     }
 };
@@ -469,9 +457,8 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
             if (!apiKey) throw new Error("Google API Key missing");
 
             const genAI = new GoogleGenerativeAI(apiKey);
-            // Use selected model ID or fallback to 1.5 Pro (which is stable)
-            // LATEST STABLE AS OF DEC 2024: gemini-1.5-pro-002 or gemini-1.5-pro
-            const modelId = serviceConfig.modelId || 'gemini-1.5-pro';
+            // Use selected model ID or fallback to 2.5 Pro (recommended for Vision)
+            const modelId = serviceConfig.modelId || 'gemini-2.5-pro';
 
             const model = genAI.getGenerativeModel({
                 model: modelId,
@@ -496,8 +483,9 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
             jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', prompt, fullDataUrl);
         }
 
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(jsonStr) as Partial<AdTemplate>;
+        // Clean Markdown if present
+        const parsed: Partial<AdTemplate> = JSON.parse(extractJSON(jsonStr));
+        return parsed;
 
     } catch (error) {
         console.error("Error describing image:", error);
@@ -505,118 +493,130 @@ export const describeImageStyle = async (settings: SettingsState, base64Image: s
         throw error;
     }
 };
-// --- New Layout Analysis & Copy Fitting Functions ---
-
-export interface LayoutConstraints {
-    headline: { maxChars: number; location: string };
-    subheadline: { maxChars: number; location: string };
-    cta: { maxChars: number; location: string };
-    body: { maxChars: number; location: string };
-}
-
-export const analyzeLayoutConstraints = async (settings: SettingsState, base64Image: string): Promise<LayoutConstraints> => {
-    const serviceConfig = settings.services.vision;
-    let cleanBase64 = base64Image;
-    if (base64Image.includes('base64,')) {
-        cleanBase64 = base64Image.split(',')[1];
-    }
-    const fullDataUrl = base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${cleanBase64}`;
-
-    const prompt = `
-        You are a Technical Design Director. Analyze this image template to determine strict text constraints.
-        Identify where text appears (Headline, Subheadline, CTA Button, Body Text).
-        
-        For each area, estimate the MAXIMUM number of characters that can fit without breaking the layout or overlapping elements.
-        Also briefly describe the location (e.g., "Top center", "Bottom right button").
-        
-        Return JSON format:
-        {
-          "headline": { "maxChars": 30, "location": "..." },
-          "subheadline": { "maxChars": 60, "location": "..." },
-          "cta": { "maxChars": 15, "location": "..." },
-          "body": { "maxChars": 200, "location": "..." }
-        }
-    `;
-
+// ------------------------------------------------------------------
+// 4. Strict Layout Analysis (Vision)
+// ------------------------------------------------------------------
+export const analyzeLayoutConstraints = async (
+    settings: SettingsState,
+    base64Image: string
+): Promise<TextZone[]> => {
     try {
-        let jsonStr = "{}";
-        if (serviceConfig.provider === 'google') {
-            const apiKey = settings.apiKeys.google;
-            const genAI = new GoogleGenerativeAI(apiKey!);
-            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
-            const result = await model.generateContent([prompt, { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }]);
-            jsonStr = result.response.text();
-        } else if (serviceConfig.provider === 'kie') {
-            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', prompt, fullDataUrl);
-        } else if (serviceConfig.provider === 'openRouter') {
-            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', prompt, fullDataUrl);
-        }
+        const apiKey = settings.apiKeys.google;
+        if (!apiKey) throw new Error("Google API Key missing for Vision Analysis");
 
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(jsonStr);
-    } catch (e) {
-        console.warn("Layout analysis failed", e);
-        return {
-            headline: { maxChars: 40, location: "top" },
-            subheadline: { maxChars: 100, location: "middle" },
-            cta: { maxChars: 15, location: "bottom" },
-            body: { maxChars: 200, location: "center" }
+        // Use the configured Vision model (or fallback to flash 2.5)
+        const modelId = settings.services.vision.modelId || 'gemini-2.5-flash';
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: modelId,
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const prompt = `
+        Recall the following rules:
+        1. Identify EVERY text element designated for the user to edit.
+        2. Identify "Static" UI elements (e.g. "AirDrop", "Decline", "Accept", fake headers/buttons) that MUST NOT change to preserve the mimicry effect.
+        3. Ignore logo text or background patterns unless they look like editable copy.
+        
+        For each element, define a "Zone".
+        
+        Return a JSON LIST of objects with this schema:
+        {
+            "id": "string", // unique id (e.g. "visual_headline", "cta_button", "static_ui_header")
+            "type": "headline" | "cta" | "body" | "caption",
+            "description": "string", // location and style description
+            "maxChars": number, // estimate the MAXIMUM characters that fit this visual space. BE CONSERVATIVE.
+            "maxLines": number, // 1 for single line, 2+ for multi-line
+            "contrastColor": "white" | "black", // best text color for this background
+            "isStatic": boolean // TRUE if this is a fake UI element (like "AirDrop", "Decline") that should NOT be edited.
+        }
+        `;
+
+        const imagePart = {
+            inlineData: {
+                data: base64Image.split(',')[1] || base64Image,
+                mimeType: "image/jpeg"
+            }
         };
+
+        const result = await model.generateContent([prompt, imagePart]);
+        const responseText = result.response.text();
+        console.log("Layout Analysis Raw:", responseText);
+
+        const zones = JSON.parse(extractJSON(responseText)) as TextZone[];
+        return zones;
+
+    } catch (e) {
+        console.error("Layout Constraint Analysis Failed:", e);
+        // Fallback: Return empty zones implies "no constraints detected"
+        return [];
     }
 };
 
+// ------------------------------------------------------------------
+// 5. Fitted Copy Generation (Text)
+// ------------------------------------------------------------------
 export const generateFittedCopy = async (
     settings: SettingsState,
-    originalCopy: string,
-    constraints: LayoutConstraints
-): Promise<{ headline: string; subheadline: string; cta: string; body: string }> => {
-    const serviceConfig = settings.services.analysis;
-
-    const prompt = `
-        You are a Senior Copywriter. Rewrite the following Ad Copy to STRICTLY fit the provided layout constraints.
-        
-        ORIGINAL COPY:
-        "${originalCopy}"
-        
-        CONSTRAINTS:
-        - Headline: Max ${constraints.headline.maxChars} chars. (Location: ${constraints.headline.location})
-        - Subheadline: Max ${constraints.subheadline.maxChars} chars. (Location: ${constraints.subheadline.location})
-        - CTA: Max ${constraints.cta.maxChars} chars. (Location: ${constraints.cta.location})
-        - Body: Max ${constraints.body.maxChars} chars. (Location: ${constraints.body.location})
-        
-        INSTRUCTIONS:
-        1. Keep the core message and emotional hook.
-        2. Aggressively edit or summarize to fit the character limits.
-        3. Do not assume the design can expand.
-        
-        Return JSON:
-        { "headline": "...", "subheadline": "...", "cta": "...", "body": "..." }
-    `;
+    brandData: BrandProfile,
+    zones: TextZone[]
+): Promise<Record<string, string>> => {
+    if (!zones || zones.length === 0) return {};
 
     try {
+        const zonesPrompt = zones.map(z => {
+            const staticNote = z.isStatic ? " [STATIC UI ELEMENT - DO NOT CHANGE TEXT]" : "";
+            return `- ID: "${z.id}" (${z.type}): Max ${z.maxChars} chars, ${z.maxLines} lines. Desc: ${z.description}${staticNote}`;
+        }).join('\n');
+
+        const prompt = `
+        You are a Specialized Copywriter for Ad Banners.
+        Your goal is to write copy that STRICTLY fits into specific visual zones.
+        
+        Brand Context:
+        - Product/Service: ${brandData.adCopy}
+        - Voice: ${brandData.brandVoice}
+        
+        Constraints (YOU MUST OBEY MAX CHARS):
+        ${zonesPrompt}
+        
+        INSTRUCTIONS:
+        1. If a zone is marked [STATIC UI ELEMENT], you MUST return the text EXACTLY as implied by the description or standard UI (e.g. "AirDrop", "Decline", "Accept"). DO NOT REWRITE IT.
+        2. For other zones, rewrite the brand copy to fit the character limits.
+        
+        Return a JSON object where keys are the Zone IDs and values are the written copy.
+        Example: { "headline_1": "Sale Now On", "cta_btn": "Shop", "static_1": "AirDrop" }
+        `;
+
         let jsonStr = "{}";
-        if (serviceConfig.provider === 'google') {
-            const apiKey = settings.apiKeys.google;
-            const genAI = new GoogleGenerativeAI(apiKey!);
-            const model = genAI.getGenerativeModel({ model: GeminiModel.ANALYSIS, generationConfig: { responseMimeType: "application/json" } });
+        const serviceConfig = settings.services.analysis;
+
+        // Prioritize Google for complex instruction following if available
+        if (settings.apiKeys.google) {
+            const genAI = new GoogleGenerativeAI(settings.apiKeys.google);
+            const modelId = serviceConfig.provider === 'google' ? (serviceConfig.modelId || 'gemini-2.5-flash') : 'gemini-2.5-flash';
+            const model = genAI.getGenerativeModel({ model: modelId, generationConfig: { responseMimeType: "application/json" } });
+
             const result = await model.generateContent(prompt);
             jsonStr = result.response.text();
-        } else if (serviceConfig.provider === 'kie') {
-            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.modelId || 'gpt-4o', prompt);
-        } else if (serviceConfig.provider === 'openRouter') {
-            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.modelId || 'openai/gpt-4o', prompt);
+
+        } else if (settings.apiKeys.openRouter) {
+            jsonStr = await callOpenRouter(settings.apiKeys.openRouter, serviceConfig.provider === 'openRouter' ? serviceConfig.modelId || 'openai/gpt-4o' : 'openai/gpt-4o', prompt);
+        } else if (settings.apiKeys.kie) {
+            jsonStr = await callKieChat(settings.apiKeys.kie, serviceConfig.provider === 'kie' ? serviceConfig.modelId || 'gpt-4o' : 'gpt-4o', prompt);
+        } else {
+            throw new Error("No API Key available for Copy Fitting");
         }
 
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Clean JSON
+        jsonStr = extractJSON(jsonStr);
+        console.log("Fitted Copy Result:", jsonStr);
+
         return JSON.parse(jsonStr);
-    } catch (e) {
-        console.warn("Copy fitting failed", e);
-        return {
-            headline: "Special Offer",
-            subheadline: "Don't miss out.",
-            cta: "Click Here",
-            body: originalCopy.slice(0, 100)
-        };
+
+    } catch (error) {
+        console.error("Copy Fitting Failed:", error);
+        return {};
     }
 };
 export const generateAdVariation = async (
@@ -625,7 +625,7 @@ export const generateAdVariation = async (
     brand: BrandProfile,
     templateName: string,
     customPrompt?: string,
-    fittedComponents?: { headline: string; subheadline: string; cta: string; body: string }
+    fittedComponents?: Record<string, string>
 ): Promise<{ image: string | null; prompt: string }> => {
     const serviceConfig = settings.services.imageGeneration;
 
@@ -635,14 +635,17 @@ export const generateAdVariation = async (
 
     // If we have fitted components, we use a much more specific layout prompt
     let copyInstructions = "";
-    if (fittedComponents) {
+    if (fittedComponents && Object.keys(fittedComponents).length > 0) {
+        // Dynamic map of constraints
+        const instructions = Object.entries(fittedComponents)
+            .map(([zoneId, text]) => `- ${zoneId}: "${text}"`)
+            .join('\n');
+
         copyInstructions = `
         STRICT LAYOUT INSTRUCTIONS:
-        - Headline: "${fittedComponents.headline}" (Must fit headline area)
-        - Subhead: "${fittedComponents.subheadline}" (Must fit subhead area)
-        - Body Text: "${fittedComponents.body}" (Must fit body area)
-        - CTA Button: "${fittedComponents.cta}" (Must fit button)
-        DO NOT ADD ANY OTHER TEXT. TEXT MUST NOT OVERFLOW.
+        ${instructions}
+        
+        DO NOT ADD ANY OTHER TEXT.TEXT MUST NOT OVERFLOW.
         `;
     } else {
         copyInstructions = `Ad Copy: "${brand.adCopy.slice(0, 300)}"`;
@@ -653,40 +656,40 @@ export const generateAdVariation = async (
     let platformRules = "";
     if (platform === 'meta') {
         platformRules = `
-        PLATFORM RULES (META/INSTAGRAM):
-        - DO NOT add "Click Here" buttons or fake UI elements. The platform adds these.
-        - Keep text minimal (<20% of image area).
+        PLATFORM RULES(META / INSTAGRAM):
+    - DO NOT add "Click Here" buttons or fake UI elements.The platform adds these.
+        - Keep text minimal(<20% of image area).
         - Focus on visual storytelling and emotional hooks.
-        - Use a lifestyle/UGC aesthetic if appropriate.
+        - Use a lifestyle / UGC aesthetic if appropriate.
         `;
     } else if (platform === 'google') {
         platformRules = `
-        PLATFORM RULES (GOOGLE DISPLAY NETWORK):
-        - CRITICAL: You MUST include a clear, high-contrast CTA button (e.g., "Learn More", "Shop Now") in the bottom-right or relevant area.
+        PLATFORM RULES(GOOGLE DISPLAY NETWORK):
+    - CRITICAL: You MUST include a clear, high - contrast CTA button(e.g., "Learn More", "Shop Now") in the bottom - right or relevant area.
         - Ensure the Value Proposition is readable and prominent.
-        - Include the logo clearly (top-left preferred).
+        - Include the logo clearly(top - left preferred).
         - Design must look clickable and actionable.
         `;
     } else if (platform === 'linkedin') {
         platformRules = `
-        PLATFORM RULES (LINKEDIN):
-        - Use professional, corporate imagery (high-quality stock or office vibes).
-        - Clean, modern typography (Sans Serif).
+        PLATFORM RULES(LINKEDIN):
+    - Use professional, corporate imagery(high - quality stock or office vibes).
+        - Clean, modern typography(Sans Serif).
         - Include data visualization or stats if the copy mentions numbers.
-        - NO fake buttons (platform handles CTA).
+        - NO fake buttons(platform handles CTA).
         `;
     } else if (platform === 'native') {
         platformRules = `
-        PLATFORM RULES (NATIVE ADS):
-        - Make it look like editorial content, not an ad.
+        PLATFORM RULES(NATIVE ADS):
+    - Make it look like editorial content, not an ad.
         - No text overlays or logos on the image itself.
         - Use candid, realistic photography.
         `;
     }
 
     const prompt = `
-    Create a professional, high-resolution advertisement image based on the provided reference layout.
-    ${copyInstructions}
+    Create a professional, high - resolution advertisement image based on the provided reference layout.
+        ${copyInstructions}
     ${voice}
     ${typo}
     Brand Colors: ${colors}.
@@ -694,11 +697,11 @@ export const generateAdVariation = async (
     Target Platform: ${platform.toUpperCase()}.
 
     ${platformRules}
-    
+
     CRITICAL:
-    1. PRESERVE THE LAYOUT OF THE REFERENCE IMAGE EXACTLY (unless platform rules require adding a button).
+    1. PRESERVE THE LAYOUT OF THE REFERENCE IMAGE EXACTLY(unless platform rules require adding a button).
     2. REPLACE TEXT WITH THE PROVIDED STRINGS.
-    3. DO NOT CHANGE THE POSITION OF ELEMENTS (unless adapting for Google CTA).
+    3. DO NOT CHANGE THE POSITION OF ELEMENTS(unless adapting for Google CTA).
     4. ENSURE TEXT CONTRAST AND READABILITY.
   `;
 
@@ -738,7 +741,7 @@ export const generateAdVariation = async (
             if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
                 for (const part of response.candidates[0].content.parts) {
                     if (part.inlineData) {
-                        return { image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`, prompt };
+                        return { image: `data:${part.inlineData.mimeType}; base64, ${part.inlineData.data} `, prompt };
                     }
                 }
             }

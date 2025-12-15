@@ -9,8 +9,8 @@ const DEFAULT_SETTINGS: SettingsState = {
     notifications: true,
     apiKeys: {
         google: CONFIG.GEMINI_API_KEY,
-        kie: '',
-        openRouter: '',
+        kie: CONFIG.KIE_API_KEY,
+        openRouter: CONFIG.OPENROUTER_API_KEY,
     },
     services: {
         analysis: { provider: 'google', isEnabled: true },
@@ -43,12 +43,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     ...DEFAULT_SETTINGS,
                     ...parsed,
                     apiKeys: {
-                        ...DEFAULT_SETTINGS.apiKeys,
-                        ...parsed.apiKeys,
-                        // If .env key exists and local is empty, might want to fallback? 
-                        // Current logic: Local overrides env. If local is empty string, we might want env.
-                        // But let's respect what's saved. If user clears it, it's cleared.
-                        // Exception: If this is first run (no local), we use defaults which use Env.
+                        google: parsed.apiKeys?.google || DEFAULT_SETTINGS.apiKeys.google,
+                        kie: parsed.apiKeys?.kie || DEFAULT_SETTINGS.apiKeys.kie,
+                        openRouter: parsed.apiKeys?.openRouter || DEFAULT_SETTINGS.apiKeys.openRouter,
                     }
                 };
             }

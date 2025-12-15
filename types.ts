@@ -24,6 +24,22 @@ export interface AdTemplate {
   visual_analysis?: string; // Creative Director's deep dive
   category?: UseCaseCategory;
   platformOrigin?: Platform; // Metadata for smart matching
+  layout?: {
+    zones: TextZone[];
+    safeZones?: number[][]; // Areas to NEVER put text
+  };
+}
+
+export interface TextZone {
+  id: string; // e.g. "box_1"
+  type: 'headline' | 'cta' | 'body' | 'caption';
+  description: string; // e.g. "Top left large bold text"
+  maxChars: number; // The absolute visual limit (e.g. 15 chars)
+  maxLines: number; // e.g. 1, 2, or 3 lines
+  contrastColor: string; // "white" or "black" for overlay readability
+  boundingBox?: number[]; // [x, y, w, h] percentage (0-100)
+  isStatic?: boolean; // If true, this text is part of the "UI" and MUST NOT be changed
+  allowEditing?: boolean; // Explicit override
 }
 
 export enum UseCaseCategory {
@@ -54,8 +70,8 @@ export enum AppStep {
 
 export enum GeminiModel {
   // Retain for backward compatibility or refactor to generic "AIModel"
-  ANALYSIS = 'gemini-1.5-pro',
-  IMAGE_GEN = 'gemini-3-pro-image-preview', // User explicitly requested this
+  ANALYSIS = 'gemini-2.5-flash',
+  IMAGE_GEN = 'imagen-3.0-generate-001', // Updated to stable Imagen 3 ID
 }
 
 export type NotificationType = 'success' | 'error' | 'info';

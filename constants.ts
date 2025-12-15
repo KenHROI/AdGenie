@@ -13,7 +13,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-1.1-1765558016438.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -23,7 +25,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-2.1-1765558017274.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -33,7 +37,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-2.2-1765558017773.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -43,7 +49,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-3.1-1765558018218.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -53,7 +61,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-3.2-1765558018653.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -63,7 +73,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-3.3-1765558019157.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -73,7 +85,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-4.1-1765558019700.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -83,7 +97,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-4.2-1765558020314.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -93,7 +109,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-5.1-1765558020703.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -103,7 +121,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-5.2-1765558021156.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -113,7 +133,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-5.3-1765558021609.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -123,7 +145,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-6.1-1765558022015.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -133,7 +157,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-6.2-1765558022492.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -143,7 +169,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-6.3-1765558022946.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -153,7 +181,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-6.4-1765558023368.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -163,7 +193,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-7.1-1765558023983.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -173,7 +205,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-7.2-1765558024381.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -183,7 +217,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-7.3-1765558024814.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -193,7 +229,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-8.1-1765558025227.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -203,7 +241,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-8.2-1765558025639.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -213,7 +253,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-8.3-1765558025996.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -223,7 +265,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-9.1-1765558026397.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -233,7 +277,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-9.2-1765558026816.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -243,7 +289,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-10.1-1765558027214.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -253,7 +301,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-11.1-1765558027585.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -263,7 +313,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-11.2-1765558027960.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -273,7 +325,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-11.3-1765558028340.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -283,7 +337,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-12.1-1765558028773.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -293,7 +349,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-12.2-1765558029533.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -303,7 +361,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-12.3-1765558030138.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -313,7 +373,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-13.1-1765558030575.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -323,7 +385,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-13.2-1765558030972.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -333,7 +397,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-14.1-1765558031361.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -343,7 +409,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-14.2-1765558031734.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -353,7 +421,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-14.3-1765558032103.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -363,7 +433,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-15.1-1765558032499.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -373,7 +445,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-15.2-1765558033017.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -383,7 +457,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-15.3-1765558033397.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -393,7 +469,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-16.1-1765558033766.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -403,7 +481,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-16.2-1765558034148.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -413,7 +493,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-16.3-1765558034510.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -423,7 +505,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-17.1-1765558034913.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -433,7 +517,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-17.2-1765558035551.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -443,7 +529,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-17.3-1765558036082.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -453,7 +541,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-18.1-1765558036700.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -463,7 +553,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-18.2-1765558037089.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -473,7 +565,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-18.3-1765558037621.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -483,7 +577,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-19.1-1765558038078.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -493,7 +589,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-19.2-1765558038529.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -503,7 +601,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-19.3-1765558038897.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -513,7 +613,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-20.1-1765558039199.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -523,7 +625,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-20.2-1765558039670.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -533,7 +637,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-21.1-1765558040077.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -543,7 +649,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-21.2-1765558040434.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -553,7 +661,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-22.1-1765558040847.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -563,7 +673,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-22.2-1765558041153.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -573,7 +685,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-23.1-1765558041467.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -583,7 +697,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-23.2-1765558041850.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -593,7 +709,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-24.1-1765558042210.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -603,7 +721,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-25.1-1765558042567.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -613,7 +733,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-25.2-1765558042956.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -623,7 +745,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-26.1-1765558043342.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -633,7 +757,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-26.2-1765558043744.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -643,7 +769,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-27.1-1765558044185.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -653,7 +781,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-27.2-1765558044606.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -663,7 +793,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-28.1-1765558045000.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -673,7 +805,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-28.2-1765558045400.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -683,7 +817,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-29.1-1765558045758.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -693,7 +829,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-29.2-1765558046145.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -703,7 +841,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-30.1-1765558046523.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -713,7 +853,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-30.2-1765558046898.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -723,7 +865,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-31.1-1765558047249.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -733,7 +877,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-32.1-1765558047762.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -743,7 +889,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-32.2-1765558048160.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -753,7 +901,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-33.1-1765558048531.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -763,7 +913,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-34.1-1765558048916.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -773,7 +925,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-34.2-1765558049255.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -783,7 +937,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-35.1-1765558049707.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -793,7 +949,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-36.1-1765558050088.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -803,7 +961,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-37.1-1765558050484.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -813,7 +973,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-37.2-1765558051094.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -823,7 +985,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-38.1-1765558051550.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -833,7 +997,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-39.1-1765558051915.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -843,7 +1009,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-40.1-1765558052328.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -853,7 +1021,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-41.1-1765558053264.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -863,7 +1033,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-42.1-1765558053650.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -873,7 +1045,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-43.1-1765558054110.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -883,7 +1057,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-44.1-1765558054668.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -893,7 +1069,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-45.1-1765558055086.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -903,7 +1081,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-45.2-1765558055447.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -913,7 +1093,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-46.1-1765558055810.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -923,7 +1105,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-47.1-1765558056208.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -933,7 +1117,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-48.1-1765558056779.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -943,7 +1129,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-49.1-1765558057158.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -953,7 +1141,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-50.1-1765558057544.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -963,7 +1153,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-51.1-1765558057920.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -973,7 +1165,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-52.1-1765558058285.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -983,7 +1177,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-52.2-1765558058657.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -993,7 +1189,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-53.1-1765558059052.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1003,7 +1201,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-54.1-1765558059398.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1013,7 +1213,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-55.1-1765558059739.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1023,7 +1225,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-56.1-1765558060143.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1033,7 +1237,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-57.1-1765558060505.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1043,7 +1249,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-57.2-1765558061190.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1053,7 +1261,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-58.1-1765558061783.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1063,7 +1273,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-59.1-1765558062148.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1073,7 +1285,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-60.1-1765558062575.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1083,7 +1297,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-60.2-1765558063019.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1093,7 +1309,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-61.1-1765558063374.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1103,7 +1321,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-61.2-1765558063728.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1113,7 +1333,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-62.1-1765558064089.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1123,7 +1345,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-62.2-1765558064411.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1133,7 +1357,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-63.1-1765558064724.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1143,7 +1369,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-63.2-1765558065149.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1153,7 +1381,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-64.1-1765558065580.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1163,7 +1393,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-65.1-1765558065948.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1173,7 +1405,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-66.1-1765558066266.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1183,7 +1417,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-67.1-1765558066676.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1193,7 +1429,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-68.1-1765558067038.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1203,7 +1441,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-69.1-1765558067535.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1213,7 +1453,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-70.1-1765558067907.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1223,7 +1465,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-71.1-1765558068302.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1233,7 +1477,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-72.1-1765558068696.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1243,7 +1489,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-73.1-1765558069127.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1253,7 +1501,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-74.1-1765558069474.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1263,7 +1513,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-75.1-1765558069877.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1273,7 +1525,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-76.1-1765558070228.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1283,7 +1537,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-77.1-1765558070588.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1293,7 +1549,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-78.1-1765558070980.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1303,7 +1561,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-79.1-1765558071367.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1313,7 +1573,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-80.1-1765558071745.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1323,7 +1585,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-81.1-1765558072173.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1333,7 +1597,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-82.1-1765558072552.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1343,7 +1609,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-83.1-1765558072944.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1353,7 +1621,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-84.1-1765558073328.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1363,7 +1633,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-85.1-1765558073713.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1373,7 +1645,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-86.1-1765558074108.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1383,7 +1657,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-87.1-1765558074579.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1393,7 +1669,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-88.1-1765558074921.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1403,7 +1681,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-89.1-1765558075311.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1413,7 +1693,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-90.1-1765558075737.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1423,7 +1705,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-91.1-1765558076078.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1433,7 +1717,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-justin-brooke-1-1765558076409.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1443,7 +1729,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-justin-brooke-2-1765558076865.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   },
   {
@@ -1453,7 +1741,9 @@ export const AD_LIBRARY: AdTemplate[] = [
     "imageUrl": "https://wsuqoclwrvsuxfdxreji.supabase.co/storage/v1/object/public/ad-genie-assets/default-justin-brooke-3-1765558077220.jpg",
     "tags": [
       "default",
-      "template"
+      "template",
+      "meta",
+      "instagram"
     ]
   }
 ];
