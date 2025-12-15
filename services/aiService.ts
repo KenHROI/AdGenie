@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { BrandProfile, AdTemplate, GeminiModel, SettingsState, TextZone } from "../types";
 import { AD_LIBRARY, KIE_IMAGE_MODELS } from "../constants";
+import { logInfo, logError } from "./loggingService";
 
 // Kie.ai Helper
 const resolveKieEndpoint = (modelId: string): string => {
@@ -334,30 +335,7 @@ export const extractAdComponents = async (settings: SettingsState, adCopy: strin
 
 
 
-// Debug Helper
-function logToScreen(msg: string) {
-    try {
-        let el = document.getElementById('debug-console');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'debug-console';
-            el.style.position = 'fixed';
-            el.style.top = '0';
-            el.style.right = '0';
-            el.style.zIndex = '9999';
-            el.style.background = 'rgba(255, 255, 255, 0.9)';
-            el.style.color = 'red';
-            el.style.border = '2px solid black';
-            el.style.padding = '10px';
-            el.style.maxWidth = '400px';
-            el.style.maxHeight = '100vh';
-            el.style.overflow = 'auto';
-            el.style.fontSize = '12px';
-            document.body.appendChild(el);
-        }
-        el.innerText += msg + '\n----------------\n';
-    } catch (e) { console.error(e); }
-}
+// Debug Helper replaced by loggingService
 
 export const analyzeAdCopyForStyles = async (
     settings: SettingsState,
@@ -382,17 +360,17 @@ export const analyzeAdCopyForStyles = async (
     `;
 
     try {
-        logToScreen("Starting Analysis...");
+        await logInfo("Starting Layout Analysis via AI...");
         const serviceConfig = settings.services.analysis;
         let jsonStr = "[]";
 
         if (serviceConfig.provider === 'google') {
             try {
                 const apiKey = settings.apiKeys.google;
-                logToScreen("Using Google. Key exists? " + !!apiKey);
+                await logInfo("Using Google. Key exists? " + !!apiKey);
                 const genAI = new GoogleGenerativeAI(apiKey!);
                 const modelId = serviceConfig.modelId || GeminiModel.ANALYSIS;
-                logToScreen(`Using Model: ${modelId}`);
+                await logInfo(`Using Google Model: ${modelId}`);
 
                 const model = genAI.getGenerativeModel({
                     model: modelId,
@@ -402,11 +380,11 @@ export const analyzeAdCopyForStyles = async (
                 const result = await model.generateContent(selectionPrompt);
                 jsonStr = result.response.text();
             } catch (googleError: any) {
-                logToScreen(`Google API Error: ${googleError.message}`);
+                await logError(`Google API Error: ${googleError.message}`);
 
                 // Fallback to OpenRouter if available
                 if (settings.apiKeys.openRouter) {
-                    logToScreen("Falling back to OpenRouter (google/gemini-2.0-flash-exp:free)...");
+                    await logInfo("Falling back to OpenRouter (google/gemini-2.0-flash-exp:free)...");
                     jsonStr = await callOpenRouter(settings.apiKeys.openRouter, 'google/gemini-2.0-flash-exp:free', selectionPrompt);
                 } else {
                     throw googleError;
@@ -414,37 +392,34 @@ export const analyzeAdCopyForStyles = async (
             }
 
         } else if (serviceConfig.provider === 'kie') {
-            logToScreen("Using Kie");
+            await logInfo("Using Kie.ai Provider");
             const apiKey = settings.apiKeys.kie;
             jsonStr = await callKieChat(apiKey, serviceConfig.modelId || 'gpt-4o', selectionPrompt);
         } else if (serviceConfig.provider === 'openRouter') {
-            logToScreen("Using OpenRouter");
+            await logInfo("Using OpenRouter Provider");
             const apiKey = settings.apiKeys.openRouter;
             jsonStr = await callOpenRouter(apiKey, serviceConfig.modelId || 'openai/gpt-4o', selectionPrompt);
         }
 
         // Clean Markdown if present and robustly extract JSON
         jsonStr = extractJSON(jsonStr);
-        logToScreen("Raw Response: " + jsonStr.substring(0, 100) + "...");
 
         const selectedIds = JSON.parse(jsonStr) as string[];
-        logToScreen("Parsed IDs: " + JSON.stringify(selectedIds));
 
         const validIds = selectedIds.filter(id => templatesToAnalyze!.some(t => t.id === id));
-        logToScreen("Valid IDs: " + JSON.stringify(validIds));
-
+        await logInfo("Successfully identified valid template IDs", validIds);
 
         if (validIds.length > 0) return validIds;
 
-        logToScreen("Fallback Triggered (No valid IDs)");
+        await logError("Analysis failed to return valid IDs. Fallback triggered.");
         return templatesToAnalyze.slice(0, 3).map(t => t.id);
 
     } catch (error: any) {
         console.error("Error analyzing copy:", error);
-        logToScreen("ERROR: " + error.message);
+        await logError("Fatal Error in Analysis flow: " + error.message);
         if (error.response) {
             const txt = await error.response.text().catch(() => "No text");
-            logToScreen("API Error Body: " + txt);
+            await logError("API Error Body: " + txt);
         }
         return templatesToAnalyze.slice(0, 3).map(t => t.id);
     }

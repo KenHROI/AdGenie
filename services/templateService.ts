@@ -1,24 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { AdTemplate, Platform, UseCaseCategory, SettingsState } from '../types';
 import { AD_LIBRARY } from '../constants';
+import { supabase } from './supabaseClient';
 
-
-
-// Initialize Supabase Client Safely
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-let supabase: any = null;
-
-if (supabaseUrl && supabaseKey) {
-    try {
-        supabase = createClient(supabaseUrl, supabaseKey);
-    } catch (e) {
-        console.error("Failed to initialize Supabase client:", e);
-    }
-} else {
-    console.warn("Missing Supabase Env Vars - Template Intelligence disabled");
-}
+// Initialize Supabase Client Safely (Done in supabaseClient.ts)
 
 export interface TemplateMetadata {
     id: string;

@@ -61,9 +61,14 @@ const optimizeImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File
     });
 };
 
+import LogsViewer from './LogsViewer';
+
 const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveTemplate, onClearLibrary, onResetLibrary, onUpdateTemplate }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
+    const [showLogs, setShowLogs] = useState(false); // New State
+
+    // ... rest of state
     const [scanStatus, setScanStatus] = useState<string>('');
     const [selectedLibIds, setSelectedLibIds] = useState<Set<string>>(new Set());
     const [isPaused, setIsPaused] = useState(false);
@@ -457,6 +462,13 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     <p className="text-sm text-gray-500 mt-1">Manage your application preferences and assets.</p>
                 </div>
                 <div className="flex items-center space-x-3">
+                    <button
+                        onClick={() => setShowLogs(true)}
+                        className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 transition-colors flex items-center gap-2"
+                    >
+                        <span>📋 System Logs</span>
+                    </button>
+
                     {isUploading && (
                         <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
                             <button onClick={isPaused ? handleResume : handlePause} className="px-3 py-1 text-xs font-bold bg-white border border-gray-200 rounded hover:bg-gray-50">
@@ -469,6 +481,8 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                     )}
                 </div>
             </div>
+
+            {showLogs && <LogsViewer onClose={() => setShowLogs(false)} />}
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-12">
 
