@@ -108,7 +108,8 @@ const transformTemplate = (apiData: any): AdTemplate => ({
   name: apiData.name,
   description: apiData.description || '',
   imageUrl: apiData.image_url || apiData.imageUrl, // Handle both formats
-  tags: apiData.tags || []
+  tags: apiData.tags || [],
+  category: apiData.category
 });
 
 const apiStorage = {
@@ -199,7 +200,8 @@ export const uploadTemplate = async (file: File, metadata: Partial<AdTemplate>):
         imageUrl: base64,
         name: metadata.name || 'Uploaded Image',
         description: metadata.description || '',
-        tags: metadata.tags || ['custom']
+        tags: metadata.tags || ['custom'],
+        category: metadata.category
       };
       return await mockStorage.saveTemplate(mockTemplate);
     }

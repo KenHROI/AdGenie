@@ -8,9 +8,10 @@ interface SuggestionSelectorProps {
   onBack: () => void;
   onNext: (selectedTemplates: AdTemplate[], customSeeds: string[], variations: number) => void;
   availableTemplates: AdTemplate[];
+  onUpdateTemplate?: (updated: AdTemplate) => void;
 }
 
-const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds, onBack, onNext, availableTemplates }) => {
+const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds, onBack, onNext, availableTemplates, onUpdateTemplate }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(recommendedIds));
   const [customSeeds, setCustomSeeds] = useState<string[]>([]);
   const [variations, setVariations] = useState(2);
@@ -181,8 +182,8 @@ const SuggestionSelector: React.FC<SuggestionSelectorProps> = ({ recommendedIds,
         isSelected={viewedTemplate ? selectedIds.has(viewedTemplate.id) : false}
         onToggleSelect={(id) => {
           toggleSelection(id);
-          // Optionally close the modal, or keep it open. Keeping it open is usually better for "shopping" behavior.
         }}
+        onUpdateTemplate={onUpdateTemplate}
       />
     </div >
   );

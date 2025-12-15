@@ -132,11 +132,21 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
                 // Agent 1: Design Director (Vision) - Analyze Constraints
                 setCurrentAction('Design Director: Analyzing layout constraints...');
-                const constraints = await analyzeLayoutConstraints(settings, base64Ref);
 
-                // Agent 2: Copywriter (Text) - Rewrite text to fit constraints
+                // Check if template has pre-scanned layout
+                const seedTemplate = selectedTemplates.find(t => t.id === item.seedTemplateId);
+                let constraints = seedTemplate?.layout?.zones;
+
+                if (!constraints) {
+                    // Fallback to real-time analysis
+                    console.log("No pre-scanned layout found, analyzing on the fly...");
+                    constraints = await analyzeLayoutConstraints(settings, base64Ref);
+                }
+
+                // Agent 2: Copywriter (Text) - Rewrite text to fit strict limits
                 setCurrentAction('Copywriter: Rewriting text to fit strict limits...');
-                const fittedCopy = await generateFittedCopy(settings, brandData.adCopy, constraints);
+                // FIX: Pass full brandData, not just adCopy string
+                const fittedCopy = await generateFittedCopy(settings, brandData, constraints);
 
                 // Agent 3: Illustrator (Generation) - Generate image
                 setCurrentAction('Illustrator: Rendering final design...');

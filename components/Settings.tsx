@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { AdTemplate } from '../types';
+import { AdTemplate, UseCaseCategory } from '../types';
 import TemplateDetailModal from './TemplateDetailModal';
 import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
@@ -205,7 +205,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 });
 
                 // 2. Analyze (non-fatal if AI fails)
-                let aiData: { name?: string; description?: string; tags?: string[] } = {
+                let aiData: { name?: string; description?: string; tags?: string[]; category?: UseCaseCategory } = {
                     name: file.name.replace(/\.[^/.]+$/, ""),
                     description: "User uploaded template",
                     tags: ["custom"]
@@ -233,7 +233,8 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                 const newTemplate = await uploadTemplate(optimizedFile, {
                     name: aiData.name || "Custom Upload",
                     description: aiData.description || "User uploaded template",
-                    tags: aiData.tags || ["custom"]
+                    tags: aiData.tags || ["custom"],
+                    category: aiData.category
                 });
 
                 if (isMounted.current && !isCancelledRef.current) {
@@ -496,19 +497,26 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
 
                                     try {
                                         const { scanLibraryIterator } = await import('../services/templateService');
-                                        const { AD_LIBRARY } = await import('../constants');
+                                        // Use current templates from props (which includes merged DB data)
+                                        // This ensures we scan what the user sees
+                                        const sourceTemplates = templates && templates.length > 0 ? templates : AD_LIBRARY;
+
                                         // Dynamically import aiService to get the function, avoiding cycle if any (though here it's fine)
-                                        const { describeImageStyle } = await import('../services/aiService');
+                                        const { describeImageStyle, analyzeLayoutConstraints } = await import('../services/aiService');
 
                                         let successCount = 0;
                                         let errorCount = 0;
 
                                         // Process in chunks or one by one
-                                        for await (const result of scanLibraryIterator(settings, AD_LIBRARY, describeImageStyle)) {
+                                        for await (const result of scanLibraryIterator(settings, sourceTemplates, describeImageStyle, analyzeLayoutConstraints)) {
+                                            console.log("Scan Result:", result); // Debug log
                                             if (result.status === 'success') {
                                                 successCount++;
-                                                if (successCount % 5 === 0) showToast(`Processed ${successCount}/${AD_LIBRARY.length}`, "info");
+                                                if (successCount % 1 === 0) { // Update toast every 1 item for visibility
+                                                    showToast(`Processed ${successCount}/${sourceTemplates.length}`, "info");
+                                                }
                                             } else {
+                                                console.error("Scan Error for ID:", result.id, result.error);
                                                 errorCount++;
                                             }
                                         }
@@ -522,7 +530,7 @@ const Settings: React.FC<SettingsProps> = ({ templates, onAddTemplate, onRemoveT
                                 disabled={isLoadingModels}
                                 className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                             >
-                                {isLoadingModels ? 'Scanning...' : 'Scan All 145 Templates'}
+                                {isLoadingModels ? 'Scanning...' : `Scan All ${templates.length || '145'} Templates`}
                             </button>
                         </div>
                     </div>

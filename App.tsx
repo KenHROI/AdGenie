@@ -46,7 +46,8 @@ const MainApp: React.FC = () => {
     useEffect(() => {
         const loadLibrary = async () => {
             try {
-                const lib = await getLibrary();
+                const { getEnrichedTemplates } = await import('./services/templateService');
+                const lib = await getEnrichedTemplates();
                 setDefaultLibrary(lib);
             } catch (e) {
                 console.error("Failed to load library", e);
@@ -216,6 +217,7 @@ const MainApp: React.FC = () => {
                             onBack={() => setCurrentStep(AppStep.INPUT)}
                             onNext={handleSelectionNext}
                             availableTemplates={availableTemplates}
+                            onUpdateTemplate={handleUpdateTemplate}
                         />
                     )}
 

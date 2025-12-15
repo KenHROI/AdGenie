@@ -1755,24 +1755,38 @@ export const DEFAULT_BRAND_COLORS = ['#3B82F6', '#10B981', '#F59E0B'];
 
 // Google Gemini Model Definitions
 export const GOOGLE_TEXT_MODELS = [
+  // Gemini 3 Family
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Preview)' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+
+  // Gemini 2.5 Pro Family
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Stable)' },
+  { id: 'gemini-2.5-pro-preview-tts', name: 'Gemini 2.5 Pro TTS' },
+
+  // Gemini 2.5 Flash Family
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-flash-preview-09-2025', name: 'Gemini 2.5 Flash (Preview 09-25)' },
+  { id: 'gemini-2.5-flash-native-audio-preview-12-2025', name: 'Gemini 2.5 Flash Audio/Video' },
+  { id: 'gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS' },
+
+  // Flash-Lite
   { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite' },
+  { id: 'gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash-Lite (Preview 09-25)' },
 ];
 
 export const GOOGLE_VISION_MODELS = [
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Preview)' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image' },
 ];
 
 export const GOOGLE_IMAGE_MODELS = [
-  { id: 'nano-banana-pro', name: 'Nano Banana Pro (Imagen 3)' }, // Google Consumer Brand via Kie/Proxy or direct if avail
+  { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro (Gemini 3 Image)' },
   { id: 'imagen-3.0-generate-001', name: 'Imagen 3' },
+  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image' },
 ];
 
-// Kie.ai Helper Lists (Initial Fallback, will be dynamic)
+// Kie.ai Helper Lists (Mapped to /v1/images/generations)
 export const KIE_IMAGE_MODELS = [
   { id: 'nano-banana-pro', name: 'Nano Banana Pro', endpoint: '/v1/images/generations' },
   { id: 'midjourney-v6.1', name: 'Midjourney v6.1', endpoint: '/v1/images/generations' },

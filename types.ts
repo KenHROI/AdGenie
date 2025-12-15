@@ -71,7 +71,7 @@ export enum AppStep {
 export enum GeminiModel {
   // Retain for backward compatibility or refactor to generic "AIModel"
   ANALYSIS = 'gemini-2.5-flash',
-  IMAGE_GEN = 'imagen-3.0-generate-001', // Updated to stable Imagen 3 ID
+  IMAGE_GEN = 'gemini-3-pro-image-preview', // Updated to Nano Banana Pro (Gemini 3)
 }
 
 export type NotificationType = 'success' | 'error' | 'info';

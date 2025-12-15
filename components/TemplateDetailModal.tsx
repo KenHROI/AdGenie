@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdTemplate } from '../types';
 
 interface TemplateDetailModalProps {
@@ -7,6 +7,7 @@ interface TemplateDetailModalProps {
     template: AdTemplate | null;
     isSelected?: boolean;
     onToggleSelect?: (id: string) => void;
+    onUpdateTemplate?: (updated: AdTemplate) => void;
 }
 
 const TemplateDetailModal: React.FC<TemplateDetailModalProps> = ({
@@ -15,8 +16,25 @@ const TemplateDetailModal: React.FC<TemplateDetailModalProps> = ({
     template,
     isSelected,
     onToggleSelect,
+    onUpdateTemplate
 }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTags, setEditTags] = useState("");
+
+    useEffect(() => {
+        if (template) {
+            setEditTags(template.tags.join(", "));
+        }
+    }, [template]);
+
     if (!isOpen || !template) return null;
+
+    const handleSaveTags = () => {
+        if (!onUpdateTemplate) return;
+        const newTags = editTags.split(',').map(t => t.trim()).filter(Boolean);
+        onUpdateTemplate({ ...template, tags: newTags });
+        setIsEditing(false);
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
@@ -58,14 +76,51 @@ const TemplateDetailModal: React.FC<TemplateDetailModalProps> = ({
                         </div>
 
                         <div className="mb-8">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Tags & Attributes</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {template.tags && template.tags.map(tag => (
-                                    <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200">
-                                        #{tag}
-                                    </span>
-                                ))}
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tags & Attributes</h4>
+                                {onUpdateTemplate && !isEditing && (
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="text-xs text-indigo-600 font-bold hover:underline"
+                                    >
+                                        Edit Tags
+                                    </button>
+                                )}
                             </div>
+
+                            {isEditing ? (
+                                <div className="flex flex-col gap-2">
+                                    <textarea
+                                        value={editTags}
+                                        onChange={(e) => setEditTags(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="meta, instagram, sale..."
+                                        rows={3}
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            onClick={() => setIsEditing(false)}
+                                            className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-gray-900"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSaveTags}
+                                            className="px-3 py-1 text-xs font-bold text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {template.tags && template.tags.map(tag => (
+                                        <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200">
+                                            #{tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 

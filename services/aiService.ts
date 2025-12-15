@@ -5,7 +5,7 @@ import { AD_LIBRARY, KIE_IMAGE_MODELS } from "../constants";
 // Kie.ai Helper
 const resolveKieEndpoint = (modelId: string): string => {
     const known = KIE_IMAGE_MODELS.find(m => m.id === modelId);
-    return known?.endpoint || '/api/v1/image/generate'; // Default fallback
+    return known?.endpoint || '/v1/images/generations'; // Default fallback to OpenAI standard
 };
 
 const extractJSON = (str: string): string => {
@@ -123,6 +123,34 @@ const callOpenRouter = async (apiKey: string, model: string, prompt: string, ima
 
     const data = await response.json() as OpenRouterResponse;
     return data.choices[0]?.message?.content || "";
+};
+
+const callOpenRouterImage = async (apiKey: string, model: string, prompt: string, size: string = "1024x1024"): Promise<string | null> => {
+    const body: any = {
+        model: model,
+        prompt: prompt,
+        n: 1,
+        size: size
+    };
+
+    const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.origin,
+            "X-Title": "AdGenie"
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`OpenRouter Image Error: ${response.statusText} - ${errorDetails}`);
+    }
+
+    const data = await response.json();
+    return data.data?.[0]?.url || null;
 };
 
 export const fetchKieModels = async (apiKey: string): Promise<Array<{ id: string; name: string; category?: 'image' | 'video' | 'audio' | 'text' }>> => {
@@ -720,8 +748,9 @@ export const generateAdVariation = async (
             if (!apiKey) throw new Error("Google API Key missing");
 
             const genAI = new GoogleGenerativeAI(apiKey);
+            const modelId = serviceConfig.modelId || GeminiModel.IMAGE_GEN;
             const model = genAI.getGenerativeModel({
-                model: GeminiModel.IMAGE_GEN
+                model: modelId
             });
 
             // Clean base64 for Google
@@ -761,24 +790,15 @@ export const generateAdVariation = async (
             const apiKey = settings.apiKeys.openRouter;
             if (!apiKey) throw new Error("OpenRouter API Key missing");
 
-            // Use the selected model from settings, or fall back to DALL-E 3
+            // Use the selected model from settings
             const modelToUse = serviceConfig.modelId || 'openai/dall-e-3';
 
-            // NOTE: Standard Chat Completions vs Image Generation
-            // OpenRouter handles specialized image params via model-specific routing often.
-            // DALL-E 3 supports size.
-            const result = await callOpenRouter(apiKey, modelToUse, prompt + `\nGenerate with Aspect Ratio ${size}.`);
+            // Use specific image generation endpoint for OpenRouter
+            const image = await callOpenRouterImage(apiKey, modelToUse, prompt + `\nAspect Ratio: ${brand.aspectRatio || '1:1'}`, size);
 
-            // Check for markdown image format ![...](url)
-            const match = result.match(/\!\[.*?\]\((.*?)\)/);
-            if (match && match[1]) {
-                return { image: match[1], prompt };
-            }
+            if (image) return { image, prompt };
 
-            // If it's just a raw URL
-            if (result.startsWith('http')) return { image: result, prompt };
-
-            console.warn("OpenRouter response did not contain a clear image URL:", result);
+            console.warn("OpenRouter response did not return an image.");
             return { image: null, prompt };
         }
 

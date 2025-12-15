@@ -3,6 +3,8 @@
 export const CONFIG = {
   // Gemini API Key - should be set via VITE_GEMINI_API_KEY
   GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
+  OPENROUTER_API_KEY: import.meta.env.VITE_OPENROUTER_API_KEY || '',
+  KIE_API_KEY: import.meta.env.VITE_KIE_API_KEY || '',
 
   // Backend API URL - defaults to localhost for development
   BACKEND_API_URL: import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000/api',
