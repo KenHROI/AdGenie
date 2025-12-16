@@ -66,6 +66,7 @@ export enum AppStep {
   SELECTION = 'SELECTION',
   GENERATION = 'GENERATION',
   SETTINGS = 'SETTINGS',
+  CAMPAIGNS = 'CAMPAIGNS',
 }
 
 export enum GeminiModel {
@@ -120,4 +121,25 @@ export interface SettingsState {
     name: string;
     category?: 'image' | 'video' | 'audio' | 'text';
   }>;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  brandData: BrandProfile;
+  createdAt: string;
+  updatedAt: string;
+  images?: CampaignImage[];
+}
+
+export interface CampaignImage {
+  id: string;
+  campaignId: string;
+  storagePath: string;
+  promptUsed: string;
+  referenceUrl: string;
+  seedTemplateId: string;
+  metadata?: any;
+  createdAt: string;
+  publicUrl?: string;
 }

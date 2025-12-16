@@ -5,7 +5,8 @@ import InputForm from './components/InputForm';
 import SuggestionSelector from './components/SuggestionSelector';
 import ImageGenerator from './components/ImageGenerator';
 import Settings from './components/Settings';
-import { AppStep, BrandProfile, AdTemplate } from './types';
+import CampaignList from './components/CampaignList'; // Import
+import { AppStep, BrandProfile, AdTemplate, Campaign, CampaignImage, GeneratedImage } from './types';
 import { analyzeAdCopyForStyles } from './services/aiService';
 import { listImagesInFolder } from './services/driveService';
 import { getLibrary, deleteTemplate, clearLibrary } from './services/storageService';
@@ -38,6 +39,9 @@ const MainApp: React.FC = () => {
 
     // State for the templates available in the CURRENT campaign session (could be Drive or Default)
     const [availableTemplates, setAvailableTemplates] = useState<AdTemplate[]>(AD_LIBRARY);
+
+    // Campaign Loading State
+    const [initialResults, setInitialResults] = useState<GeneratedImage[]>([]);
 
     const { showToast } = useNotification();
     const { settings } = useSettings();
@@ -162,6 +166,34 @@ const MainApp: React.FC = () => {
         }
     }, [showToast]);
 
+    const handleSelectCampaign = useCallback((campaign: Campaign, images: CampaignImage[]) => {
+        // Map images to GeneratedImage format
+        const mappedResults: GeneratedImage[] = images.map(img => ({
+            id: img.id,
+            base64: img.publicUrl || '', // Or handle if empty. Ideally promptService ensures publicUrl or base64. 
+            // Wait, storage logic might need to fetch blob if not public? 
+            // Public URL is easiest. But ImageGenerator expects base64 for download usually?
+            // Actually it just renders <img src={base64}>. URL works fine there.
+            // But 'Download' might assume base64 data URI for simple anchor download?
+            // "downloadImage" creates generic link. href=URL works if CORS allows.
+            promptUsed: img.promptUsed,
+            seedTemplateId: img.seedTemplateId,
+            referenceUrl: img.referenceUrl,
+            timestamp: new Date(img.createdAt).getTime(),
+            status: 'success'
+        }));
+
+        setBrandData(campaign.brandData);
+        setInitialResults(mappedResults);
+
+        // We might need to populate selectedTemplates if we want "Respin" to work perfectly with original templates?
+        // But for now, just viewing the results is good. Respin might fail if template not found?
+        // ImageGenerator handles respin by re-fetching referenceUrl. So it should work!
+
+        setCurrentStep(AppStep.GENERATION);
+        showToast(`Loaded campaign: ${campaign.name}`, 'success');
+    }, [showToast]);
+
     // Determine what to render in the main area
     const renderContent = () => {
         if (currentStep === AppStep.SETTINGS) {
@@ -175,6 +207,17 @@ const MainApp: React.FC = () => {
                         onClearLibrary={handleClearLibrary}
                         onResetLibrary={handleResetLibrary}
                         onUpdateTemplate={handleUpdateTemplate}
+                    />
+                </div>
+            );
+        }
+
+        if (currentStep === AppStep.CAMPAIGNS) {
+            return (
+                <div className="h-full w-full max-w-7xl mx-auto">
+                    <CampaignList
+                        onSelectCampaign={handleSelectCampaign}
+                        onBack={() => setCurrentStep(AppStep.INPUT)}
                     />
                 </div>
             );
@@ -228,6 +271,7 @@ const MainApp: React.FC = () => {
                             customSeeds={customSeeds}
                             variationsPerSeed={variationsPerSeed}
                             onBack={() => setCurrentStep(AppStep.SELECTION)}
+                            initialResults={initialResults}
                         />
                     )}
 

@@ -4,6 +4,7 @@ import { CONFIG } from '../config';
 import { generateAdVariation, extractAdComponents, analyzeLayoutConstraints, generateFittedCopy } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import { useNotification } from '../context/NotificationContext';
+import { saveCampaign } from '../services/campaignService'; // Import Service
 import JSZip from 'jszip';
 import GalleryModal from './GalleryModal';
 
@@ -13,6 +14,7 @@ interface ImageGeneratorProps {
     customSeeds: string[];
     variationsPerSeed: number;
     onBack: () => void;
+    initialResults?: GeneratedImage[];
 }
 
 const ImageGenerator: React.FC<ImageGeneratorProps> = ({
@@ -21,12 +23,13 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     customSeeds,
     variationsPerSeed,
     onBack,
+    initialResults = []
 }) => {
     const { settings } = useSettings();
     const hasKey = !!(settings.apiKeys.google || settings.apiKeys.kie || settings.apiKeys.openRouter); // Simple check for now
 
     const [isGenerating, setIsGenerating] = useState(false);
-    const [results, setResults] = useState<GeneratedImage[]>([]);
+    const [results, setResults] = useState<GeneratedImage[]>(initialResults);
     const [progress, setProgress] = useState(0);
     const [currentAction, setCurrentAction] = useState('Initializing...');
 
@@ -52,7 +55,8 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
     // Simplified check - rely on settings context
     const checkKey = async () => {
-        if (hasKey && !isGenerating && results.length === 0) {
+        // Only auto-start if valid key, not generating, NO results yet, and NO initial loaded results
+        if (hasKey && !isGenerating && results.length === 0 && initialResults.length === 0) {
             startGeneration();
         }
     };
@@ -299,6 +303,21 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         }
     };
 
+    const handleSaveCampaign = async () => {
+        if (results.length === 0) return;
+        const name = window.prompt("Enter a name for this campaign:");
+        if (!name) return;
+
+        try {
+            showToast("Saving campaign...", 'info');
+            await saveCampaign(name, brandData, results);
+            showToast("Campaign saved successfully!", 'success');
+        } catch (e: any) {
+            console.error("Save failed", e);
+            showToast(`Failed to save: ${e.message}`, 'error');
+        }
+    };
+
     if (!hasKey) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white">
@@ -327,13 +346,21 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                 </div>
                 <div className="flex space-x-2">
                     {results.length > 0 && !isGenerating && (
-                        <button
-                            onClick={handleDownloadAll}
-                            className="flex items-center space-x-2 bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-all"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            <span>Download All (ZIP)</span>
-                        </button>
+                        <>
+                            <button
+                                onClick={handleSaveCampaign}
+                                className="flex items-center space-x-2 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-sm font-medium px-4 py-2 rounded-lg transition-all"
+                            >
+                                <span>💾 Save Campaign</span>
+                            </button>
+                            <button
+                                onClick={handleDownloadAll}
+                                className="flex items-center space-x-2 bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-all"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                <span>Download All (ZIP)</span>
+                            </button>
+                        </>
                     )}
                     <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm font-medium px-4 py-2">
                         Back
